@@ -34,17 +34,36 @@ import { QuickDataTest } from './QuickDataTest';
 
 
 export function Dashboard() {
-  const { subscriptions, settings, refreshData } = useApp();
+  const { subscriptions, settings, refreshData, isLoading } = useApp();
   
   // Debug logging
   console.log('🏠 Dashboard render:', {
     subscriptionsCount: subscriptions.length,
     hasSubscriptions: subscriptions.length > 0,
     settings,
-    firstSubscription: subscriptions[0]
+    firstSubscription: subscriptions[0],
+    isLoading
   });
   
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 초기 로딩 중이면 로딩 화면 표시
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background dark">
+        <Header />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center space-y-6">
+            <RefreshCw className="w-12 h-12 text-primary-500 animate-spin" />
+            <div className="text-white/60 text-lg tracking-wide">
+              데이터를 불러오는 중...
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [monthlyBudget] = useState(500000); // 기본 월간 예산 50만원
   
