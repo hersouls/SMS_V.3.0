@@ -19,7 +19,7 @@ const TermsOfService = React.lazy(() => import('./components/TermsOfService').th
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 const RLSDebugger = React.lazy(() => import('./components/RLSDebugger').then(module => ({ default: module.RLSDebugger })));
 const DataLoadingDebugger = React.lazy(() => import('./components/DataLoadingDebugger').then(module => ({ default: module.DataLoadingDebugger })));
-const SupabaseTestDashboard = React.lazy(() => import('./components/SupabaseTestDashboard').then(module => ({ default: module.SupabaseTestDashboard })));
+
 
 // Loading component
 const LoadingSpinner = () => (
@@ -302,6 +302,26 @@ function AppProvider({ children }: { children: ReactNode }) {
     const initializeAuth = async () => {
       try {
         console.log('🔍 App: getSession 호출 중...');
+        
+        // URL에 OAuth 콜백 파라미터가 있는지 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlHash = window.location.hash;
+        const hasOAuthParams = urlParams.has('code') || urlParams.has('access_token') || urlHash.includes('access_token');
+        
+        console.log('🔍 App: OAuth 파라미터 확인:', {
+          hasCode: urlParams.has('code'),
+          hasAccessToken: urlParams.has('access_token') || urlHash.includes('access_token'),
+          currentPath: window.location.pathname,
+          hasOAuthParams
+        });
+
+        // OAuth 콜백 처리 중이면 세션 처리를 지연
+        if (hasOAuthParams && window.location.pathname !== '/auth/callback') {
+          console.log('🔄 App: OAuth 콜백 파라미터 감지, /auth/callback으로 리다이렉트');
+          window.location.href = '/auth/callback' + window.location.search + window.location.hash;
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         console.log('📋 App: getSession 결과:', { hasSession: !!session, hasUser: !!session?.user });
         
@@ -492,34 +512,59 @@ function AppProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔄 loadUserData started');
       
+      // 데이터 로딩 중 상태 표시
+      const loadingSteps = {
+        subscriptions: false,
+        settings: false,
+        stats: false
+      };
+
       // Load subscriptions
       console.log('📊 Loading subscriptions...');
-      const subscriptionsData = await apiService.getSubscriptions();
-      console.log('📊 Subscriptions loaded:', {
-        count: subscriptionsData.subscriptions?.length || 0,
-        data: subscriptionsData.subscriptions?.slice(0, 2) // Log first 2 items for debugging
-      });
-      setSubscriptions(subscriptionsData.subscriptions || []);
+      try {
+        const subscriptionsData = await apiService.getSubscriptions();
+        console.log('📊 Subscriptions loaded:', {
+          count: subscriptionsData.subscriptions?.length || 0,
+          data: subscriptionsData.subscriptions?.slice(0, 2) // Log first 2 items for debugging
+        });
+        setSubscriptions(subscriptionsData.subscriptions || []);
+        loadingSteps.subscriptions = true;
+      } catch (subscriptionError) {
+        console.error('❌ Error loading subscriptions:', subscriptionError);
+        // 구독 데이터 로딩 실패해도 계속 진행
+        setSubscriptions([]);
+      }
 
       // Load settings
       console.log('⚙️ Loading settings...');
-      const settingsData = await apiService.getSettings();
-      console.log('⚙️ Settings loaded:', settingsData);
-      if (settingsData.settings) {
-        setSettings(prev => ({ ...prev, ...settingsData.settings }));
+      try {
+        const settingsData = await apiService.getSettings();
+        console.log('⚙️ Settings loaded:', settingsData);
+        if (settingsData.settings) {
+          setSettings(prev => ({ ...prev, ...settingsData.settings }));
+        }
+        loadingSteps.settings = true;
+      } catch (settingsError) {
+        console.error('❌ Error loading settings:', settingsError);
+        // 설정 로딩 실패해도 기본값 사용
       }
 
       // 통계 데이터 업데이트
       console.log('📈 Calculating stats...');
-      const newStats = calculateStats();
-      console.log('📈 Stats calculated:', {
-        totalSubscriptions: newStats.totalSubscriptions,
-        activeCount: newStats.activeCount,
-        totalMonthly: newStats.totalMonthly
-      });
-      setStats(newStats);
+      try {
+        const newStats = calculateStats();
+        console.log('📈 Stats calculated:', {
+          totalSubscriptions: newStats.totalSubscriptions,
+          activeCount: newStats.activeCount,
+          totalMonthly: newStats.totalMonthly
+        });
+        setStats(newStats);
+        loadingSteps.stats = true;
+      } catch (statsError) {
+        console.error('❌ Error calculating stats:', statsError);
+      }
       
-      console.log('✅ loadUserData completed successfully');
+      console.log('✅ loadUserData completed successfully', loadingSteps);
     } catch (error) {
       console.error('❌ Error loading user data:', error);
       
@@ -540,6 +585,62 @@ function AppProvider({ children }: { children: ReactNode }) {
       } catch (authError) {
         console.error('🔍 Auth session check failed:', authError);
       }
+      
+      // 에러가 발생해도 기본 상태로 설정
+      setSubscriptions([]);
+      setStats({
+        totalMonthly: 0,
+        monthlyTotal: 0,
+        yearlySpendingToDate: 0,
+        yearlyTotal: 0,
+        totalYearly: 0,
+        activeCount: 0,
+        pausedCount: 0,
+        cancelledCount: 0,
+        totalSubscriptions: 0,
+        upcomingPayments: 0,
+        todayCount: 0,
+        weekCount: 0,
+        todayTotal: 0,
+        weeklyTotal: 0,
+        avgSubscriptionCost: 0,
+        monthlyTrend: 0,
+        categoryBreakdown: {},
+        paymentCycleBreakdown: {
+          monthly: { count: 0, totalAmount: 0 },
+          yearly: { count: 0, totalAmount: 0 },
+          onetime: { count: 0, totalAmount: 0 }
+        },
+        currencyBreakdown: {
+          KRW: { count: 0, totalAmount: 0 },
+          USD: { count: 0, totalAmount: 0 }
+        },
+        tierBreakdown: {},
+        notificationStats: {
+          sevenDays: 0,
+          threeDays: 0,
+          sameDay: 0,
+          totalWithNotifications: 0
+        },
+        autoRenewalStats: {
+          enabled: 0,
+          disabled: 0,
+          percentage: 0
+        },
+        tagStats: {},
+        startDateBreakdown: {},
+        paymentDayBreakdown: {},
+        insights: {
+          mostExpensiveCategory: '',
+          cheapestCategory: '',
+          mostPopularCategory: '',
+          averageMonthlySpending: 0,
+          totalSavingsFromYearly: 0,
+          projectedYearlySpending: 0,
+          spendingGrowthRate: 0,
+          subscriptionEfficiency: 0
+        }
+      });
     }
   };
 
@@ -596,9 +697,10 @@ function AppProvider({ children }: { children: ReactNode }) {
         throw new Error('Google OAuth가 설정되지 않았습니다. 개발자에게 문의하세요.');
       }
       
-      // 현재 도메인 감지
+      // 현재 도메인 감지 - 일관된 리다이렉트 URL 사용
       const currentOrigin = window.location.origin;
-      const redirectUrl = `${currentOrigin}/dashboard`;
+      // OAuth 콜백을 위한 특별한 페이지 사용
+      const redirectUrl = `${currentOrigin}/auth/callback`;
       
       console.log('Google OAuth 시작:', {
         origin: currentOrigin,
@@ -1367,6 +1469,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/subscriptions" element={<ProtectedRoute><AllSubscriptions /></ProtectedRoute>} />
