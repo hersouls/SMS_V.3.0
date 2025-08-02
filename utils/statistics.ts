@@ -812,6 +812,7 @@ export async function saveStatisticsData<T>(
   data: T,
   retryCount: number = 0
 ): Promise<boolean> {
+  try {
     // 테이블별로 올바른 제약조건 사용
     let conflictColumns: string;
     
@@ -840,8 +841,38 @@ export async function saveStatisticsData<T>(
       default:
         conflictColumns = 'user_id,date';
     }
+
+    // 데이터를 upsert로 저장
+    const { error } = await supabase
+      .from(tableName)
+      .upsert(data);
+
+    if (error) {
+      console.error(`${tableName} 저장 실패:`, error);
+      
+      // 재시도 로직 (최대 3회)
+      if (retryCount < 3) {
+        console.log(`${tableName} 저장 재시도 (${retryCount + 1}/3)`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return await saveStatisticsData(tableName, data, retryCount + 1);
+      }
+      
+      return false;
     }
-  });
+
+    return true;
+  } catch (error) {
+    console.error(`${tableName} 저장 중 예외 발생:`, error);
+    
+    // 재시도 로직 (최대 3회)
+    if (retryCount < 3) {
+      console.log(`${tableName} 저장 재시도 (${retryCount + 1}/3)`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+      return await saveStatisticsData(tableName, data, retryCount + 1);
+    }
+    
+    return false;
+  }
 }
 
 /**
