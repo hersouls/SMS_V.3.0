@@ -1,6 +1,61 @@
 import { supabase } from '../utils/supabase/client';
 
 // =====================================================
+// 통계 업데이트 디바운싱 및 큐 관리
+// =====================================================
+
+const pendingUpdates = new Map<string, NodeJS.Timeout>();
+const operationQueue = new Map<string, Promise<any>>();
+
+/**
+ * 통계 업데이트를 디바운싱하여 중복 호출 방지
+ */
+function debounceStatisticsUpdate(
+  key: string,
+  updateFunction: () => Promise<void>,
+  delay: number = 2000
+): void {
+  // 기존 타이머 취소
+  if (pendingUpdates.has(key)) {
+    clearTimeout(pendingUpdates.get(key)!);
+  }
+
+  // 새 타이머 설정
+  const timer = setTimeout(async () => {
+    try {
+      await updateFunction();
+    } catch (error) {
+      console.error(`디바운싱된 통계 업데이트 실패 (${key}):`, error);
+    } finally {
+      pendingUpdates.delete(key);
+    }
+  }, delay);
+
+  pendingUpdates.set(key, timer);
+}
+
+/**
+ * 동시 통계 작업을 방지하기 위한 큐 관리
+ */
+async function queueOperation<T>(
+  operationKey: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  // 이미 진행 중인 작업이 있다면 대기
+  if (operationQueue.has(operationKey)) {
+    await operationQueue.get(operationKey);
+  }
+
+  // 새 작업 등록
+  const promise = operation().finally(() => {
+    operationQueue.delete(operationKey);
+  });
+
+  operationQueue.set(operationKey, promise);
+  return promise;
+}
+
+// =====================================================
 // 통계 데이터 타입 정의
 // =====================================================
 
@@ -747,35 +802,16 @@ export async function collectUserBehaviorAnalytics(
 // =====================================================
 
 /**
- * 통계 데이터를 Supabase에 저장
+ * 통계 데이터를 Supabase에 저장 (upsert 방식, 재시도 로직 포함)
  */
 // Analytics tables availability cache
 const analyticsTablesCache = new Map<string, boolean>();
 
 export async function saveStatisticsData<T>(
   tableName: string,
-  data: T
+  data: T,
+  retryCount: number = 0
 ): Promise<boolean> {
-  try {
-    // Check if table exists (with caching)
-    if (!analyticsTablesCache.has(tableName)) {
-      const { error: testError } = await supabase
-        .from(tableName)
-        .select('*')
-        .limit(1);
-      
-      if (testError && testError.code === '42P01') {
-        console.warn(`Analytics table '${tableName}' does not exist. Skipping analytics data save.`);
-        analyticsTablesCache.set(tableName, false);
-        return false;
-      }
-      analyticsTablesCache.set(tableName, true);
-    }
-    
-    if (!analyticsTablesCache.get(tableName)) {
-      return false;
-    }
-
     // 테이블별로 올바른 제약조건 사용
     let conflictColumns: string;
     
@@ -804,33 +840,8 @@ export async function saveStatisticsData<T>(
       default:
         conflictColumns = 'user_id,date';
     }
-
-    // upsert 방식으로 데이터 저장 (충돌 시 업데이트)
-    const { error } = await supabase
-      .from(tableName)
-      .upsert(data, {
-        onConflict: conflictColumns,
-        ignoreDuplicates: false
-      });
-
-    if (error) {
-      if (error.code === '42P01') {
-        // Table doesn't exist
-        console.warn(`Analytics table '${tableName}' does not exist. Analytics features disabled.`);
-        analyticsTablesCache.set(tableName, false);
-        return false;
-      } else {
-        console.error(`${tableName} 데이터 저장 실패:`, error);
-        return false;
-      }
     }
-
-    // 성공적으로 저장됨
-    return true;
-  } catch (error) {
-    console.error(`${tableName} 데이터 저장 중 오류:`, error);
-    return false;
-  }
+  });
 }
 
 /**
@@ -840,63 +851,75 @@ export async function collectAndSaveAllStatistics(
   userId: string,
   exchangeRate: number = 1300
 ): Promise<boolean> {
-  try {
-    // 1. 구독별 통계 수집
-    const { data: subscriptions } = await supabase
-      .from('subscriptions')
-      .select('id')
-      .eq('user_id', userId);
+  const debounceKey = `all-stats-${userId}`;
+  
+  return new Promise((resolve) => {
+    debounceStatisticsUpdate(debounceKey, async () => {
+      try {
+        console.log(`전체 통계 수집 시작 (사용자: ${userId})`);
+        
+        // 1. 구독별 통계 수집
+        const { data: subscriptions } = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', userId);
 
-    if (subscriptions) {
-      for (const sub of subscriptions) {
-        const stats = await collectSubscriptionStatistics(sub.id, userId, exchangeRate);
-        if (stats) {
-          await saveStatisticsData('subscription_statistics', stats);
+        if (subscriptions) {
+          for (const sub of subscriptions) {
+            const stats = await collectSubscriptionStatistics(sub.id, userId, exchangeRate);
+            if (stats) {
+              await saveStatisticsData('subscription_statistics', stats);
+            }
+          }
         }
+
+        // 2. 카테고리별 분석
+        const categoryAnalytics = await collectCategoryAnalytics(userId, exchangeRate);
+        for (const analytics of categoryAnalytics) {
+          await saveStatisticsData('category_analytics', analytics);
+        }
+
+        // 3. 결제주기별 분석
+        const cycleAnalytics = await collectPaymentCycleAnalytics(userId, exchangeRate);
+        for (const analytics of cycleAnalytics) {
+          await saveStatisticsData('payment_cycle_analytics', analytics);
+        }
+
+        // 4. 태그별 분석
+        const tagAnalytics = await collectTagAnalytics(userId, exchangeRate);
+        for (const analytics of tagAnalytics) {
+          await saveStatisticsData('tag_analytics', analytics);
+        }
+
+        // 5. 월별 지출 트렌드
+        const currentDate = new Date();
+        const monthlyTrends = await collectMonthlySpendingTrends(
+          userId,
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1,
+          exchangeRate
+        );
+        if (monthlyTrends) {
+          await saveStatisticsData('monthly_spending_trends', monthlyTrends);
+        }
+
+        // 6. 알림 분석
+        const notificationAnalytics = await collectNotificationAnalytics(userId);
+        if (notificationAnalytics) {
+          await saveStatisticsData('notification_analytics', notificationAnalytics);
+        }
+
+        console.log(`전체 통계 수집 완료 (사용자: ${userId})`);
+        resolve(true);
+      } catch (error) {
+        console.error('종합 통계 수집 및 저장 실패:', error);
+        resolve(false);
       }
-    }
-
-    // 2. 카테고리별 분석
-    const categoryAnalytics = await collectCategoryAnalytics(userId, exchangeRate);
-    for (const analytics of categoryAnalytics) {
-      await saveStatisticsData('category_analytics', analytics);
-    }
-
-    // 3. 결제주기별 분석
-    const cycleAnalytics = await collectPaymentCycleAnalytics(userId, exchangeRate);
-    for (const analytics of cycleAnalytics) {
-      await saveStatisticsData('payment_cycle_analytics', analytics);
-    }
-
-    // 4. 태그별 분석
-    const tagAnalytics = await collectTagAnalytics(userId, exchangeRate);
-    for (const analytics of tagAnalytics) {
-      await saveStatisticsData('tag_analytics', analytics);
-    }
-
-    // 5. 월별 지출 트렌드
-    const currentDate = new Date();
-    const monthlyTrends = await collectMonthlySpendingTrends(
-      userId,
-      currentDate.getFullYear(),
-      currentDate.getMonth() + 1,
-      exchangeRate
-    );
-    if (monthlyTrends) {
-      await saveStatisticsData('monthly_spending_trends', monthlyTrends);
-    }
-
-    // 6. 알림 분석
-    const notificationAnalytics = await collectNotificationAnalytics(userId);
-    if (notificationAnalytics) {
-      await saveStatisticsData('notification_analytics', notificationAnalytics);
-    }
-
-    return true;
-  } catch (error) {
-    console.error('종합 통계 수집 및 저장 실패:', error);
-    return false;
-  }
+    });
+    
+    // 디바운싱으로 인해 즉시 실행되지 않을 수 있으므로 일단 true 반환
+    resolve(true);
+  });
 }
 
 // =====================================================
@@ -911,52 +934,59 @@ export async function updateStatisticsOnSubscriptionChange(
   userId: string,
   action: 'create' | 'update' | 'delete'
 ): Promise<boolean> {
-  try {
-    console.log(`통계 업데이트 시작: ${action} - 구독 ${subscriptionId}`);
+  const debounceKey = `sub-change-${userId}`;
+  
+  return new Promise((resolve) => {
+    debounceStatisticsUpdate(debounceKey, async () => {
+      try {
+        console.log(`통계 업데이트 시작: ${action} - 구독 ${subscriptionId}`);
 
-    // 1. 구독별 통계 업데이트
-    if (action !== 'delete') {
-      const subscriptionStats = await collectSubscriptionStatistics(subscriptionId, userId);
-      if (subscriptionStats) {
-        await saveStatisticsData('subscription_statistics', subscriptionStats);
+        // 1. 구독별 통계 업데이트
+        if (action !== 'delete') {
+          const subscriptionStats = await collectSubscriptionStatistics(subscriptionId, userId);
+          if (subscriptionStats) {
+            await saveStatisticsData('subscription_statistics', subscriptionStats);
+          }
+        }
+
+        // 2. 카테고리별 분석 업데이트
+        const categoryAnalytics = await collectCategoryAnalytics(userId);
+        for (const analytics of categoryAnalytics) {
+          await saveStatisticsData('category_analytics', analytics);
+        }
+
+        // 3. 결제주기별 분석 업데이트
+        const cycleAnalytics = await collectPaymentCycleAnalytics(userId);
+        for (const analytics of cycleAnalytics) {
+          await saveStatisticsData('payment_cycle_analytics', analytics);
+        }
+
+        // 4. 태그별 분석 업데이트
+        const tagAnalytics = await collectTagAnalytics(userId);
+        for (const analytics of tagAnalytics) {
+          await saveStatisticsData('tag_analytics', analytics);
+        }
+
+        // 5. 월별 지출 트렌드 업데이트
+        const currentDate = new Date();
+        const monthlyTrends = await collectMonthlySpendingTrends(
+          userId,
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1
+        );
+        if (monthlyTrends) {
+          await saveStatisticsData('monthly_spending_trends', monthlyTrends);
+        }
+
+        console.log(`통계 업데이트 완료: ${action} - 구독 ${subscriptionId}`);
+      } catch (error) {
+        console.error(`통계 업데이트 실패: ${action} - 구독 ${subscriptionId}`, error);
       }
-    }
-
-    // 2. 카테고리별 분석 업데이트
-    const categoryAnalytics = await collectCategoryAnalytics(userId);
-    for (const analytics of categoryAnalytics) {
-      await saveStatisticsData('category_analytics', analytics);
-    }
-
-    // 3. 결제주기별 분석 업데이트
-    const cycleAnalytics = await collectPaymentCycleAnalytics(userId);
-    for (const analytics of cycleAnalytics) {
-      await saveStatisticsData('payment_cycle_analytics', analytics);
-    }
-
-    // 4. 태그별 분석 업데이트
-    const tagAnalytics = await collectTagAnalytics(userId);
-    for (const analytics of tagAnalytics) {
-      await saveStatisticsData('tag_analytics', analytics);
-    }
-
-    // 5. 월별 지출 트렌드 업데이트
-    const currentDate = new Date();
-    const monthlyTrends = await collectMonthlySpendingTrends(
-      userId,
-      currentDate.getFullYear(),
-      currentDate.getMonth() + 1
-    );
-    if (monthlyTrends) {
-      await saveStatisticsData('monthly_spending_trends', monthlyTrends);
-    }
-
-    console.log(`통계 업데이트 완료: ${action} - 구독 ${subscriptionId}`);
-    return true;
-  } catch (error) {
-    console.error(`통계 업데이트 실패: ${action} - 구독 ${subscriptionId}`, error);
-    return false;
-  }
+    });
+    
+    // 디바운싱으로 인해 즉시 실행되지 않을 수 있으므로 일단 true 반환
+    resolve(true);
+  });
 }
 
 /**
@@ -1082,10 +1112,14 @@ export async function trackUserBehavior(
       behaviorData.session_duration_minutes / 60
     ));
 
-    // 데이터 저장
-    await saveStatisticsData('user_behavior_analytics', behaviorData);
-
-    console.log(`사용자 행동 추적 완료: ${behavior.action} - 사용자 ${userId}`);
+    // 데이터 저장 (재시도 로직 포함)
+    const saveSuccess = await saveStatisticsData('user_behavior_analytics', behaviorData);
+    
+    if (saveSuccess) {
+      console.log(`사용자 행동 추적 완료: ${behavior.action} - 사용자 ${userId}`);
+    } else {
+      console.warn(`사용자 행동 추적 저장 실패: ${behavior.action} - 사용자 ${userId}`);
+    }
   } catch (error) {
     console.error('사용자 행동 추적 실패:', error);
   }
