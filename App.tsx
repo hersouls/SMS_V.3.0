@@ -19,6 +19,7 @@ const TermsOfService = React.lazy(() => import('./components/TermsOfService').th
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 const RLSDebugger = React.lazy(() => import('./components/RLSDebugger').then(module => ({ default: module.RLSDebugger })));
 const DataLoadingDebugger = React.lazy(() => import('./components/DataLoadingDebugger').then(module => ({ default: module.DataLoadingDebugger })));
+const AuthCallback = React.lazy(() => import('./components/AuthCallback').then(module => ({ default: module.AuthCallback })));
 
 
 // Loading component
@@ -1323,6 +1324,7 @@ function AppProvider({ children }: { children: ReactNode }) {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/subscriptions" element={<ProtectedRoute><AllSubscriptions /></ProtectedRoute>} />
@@ -1335,6 +1337,9 @@ function AppProvider({ children }: { children: ReactNode }) {
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/rls-debug" element={<RLSDebugger />} />
+                <Route path="/data-debug" element={<ProtectedRoute><DataLoadingDebugger /></ProtectedRoute>} />
+                <Route path="/supabase-test" element={<SupabaseTestDashboard />} />
                 
                 {/* Handle preview_page.html and other unmatched routes */}
                 <Route path="/preview_page.html" element={<RedirectRoute />} />
@@ -1351,6 +1356,9 @@ function AppProvider({ children }: { children: ReactNode }) {
             <PWAInstallPrompt />
             
             {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
+            
+
+            
             <Toaster />
           </div>
         </Router>
