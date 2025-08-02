@@ -947,10 +947,10 @@ function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // 알림 설정 통계
-      if (sub.notifications.sevenDays) notificationStats.sevenDays++;
-      if (sub.notifications.threeDays) notificationStats.threeDays++;
-      if (sub.notifications.sameDay) notificationStats.sameDay++;
-      if (sub.notifications.sevenDays || sub.notifications.threeDays || sub.notifications.sameDay) {
+      if (sub.notifications?.sevenDays) notificationStats.sevenDays++;
+      if (sub.notifications?.threeDays) notificationStats.threeDays++;
+      if (sub.notifications?.sameDay) notificationStats.sameDay++;
+      if (sub.notifications?.sevenDays || sub.notifications?.threeDays || sub.notifications?.sameDay) {
         notificationStats.totalWithNotifications++;
       }
 
