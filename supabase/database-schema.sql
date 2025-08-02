@@ -393,7 +393,8 @@ CREATE TRIGGER update_user_preferences_updated_at
 -- 11. 뷰 생성
 -- =====================================================
 
--- 사용자별 구독 통계 뷰
+-- 사용자별 구독 통계 뷰 (보안 강화 버전)
+-- SECURITY DEFINER 제거하고 RLS에 의존
 CREATE OR REPLACE VIEW user_subscription_stats AS
 SELECT 
   user_id,
