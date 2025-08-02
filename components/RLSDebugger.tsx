@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, User, Database, CheckCircle, XCircle, AlertTriangle, Refresh, Play, FileText } from 'lucide-react';
+import { Shield, User, Database, CheckCircle, XCircle, AlertTriangle, RotateCw, Play, FileText } from 'lucide-react';
 import { supabase } from '../utils/supabase/client';
 import { 
   checkAuthenticationStatus, 
@@ -172,7 +172,7 @@ export const RLSDebugger: React.FC = () => {
                 disabled={isRefreshing}
                 className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                <Refresh className={`w-4 h-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RotateCw className={`w-4 h-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
                 새로고침
               </button>
               <button
