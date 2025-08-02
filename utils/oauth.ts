@@ -33,15 +33,8 @@ export const getGoogleOAuthConfig = (): OAuthConfig => {
   const environment = getCurrentEnvironment();
   const currentDomain = getCurrentDomain();
   
-  // 개발 환경에서는 현재 도메인 사용, 프로덕션에서는 Supabase 콜백 사용
-  let redirectUri: string;
-  
-  if (environment === 'development') {
-    redirectUri = `${currentDomain}/dashboard`;
-  } else {
-    // 프로덕션에서는 Supabase Auth 콜백 사용
-    redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`;
-  }
+  // 모든 환경에서 일관된 콜백 URL 사용
+  const redirectUri = `${currentDomain}/auth/callback`;
   
   const config: OAuthConfig = {
     clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
