@@ -6,6 +6,8 @@ import { WaveButton } from './WaveButton';
 import { useApp } from '../App';
 
 export function Login() {
+  console.log('🔐 Login: 컴포넌트 렌더링 시작');
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

@@ -294,20 +294,27 @@ function AppProvider({ children }: { children: ReactNode }) {
 
   // Initialize authentication state
   useEffect(() => {
+    console.log('🔄 App: initializeAuth useEffect 시작');
     const initializeAuth = async () => {
       try {
+        console.log('🔍 App: getSession 호출 중...');
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('📋 App: getSession 결과:', { hasSession: !!session, hasUser: !!session?.user });
+        
         if (session?.user) {
           // 세션 만료 확인
           const now = Math.floor(Date.now() / 1000);
           const expiresAt = session.expires_at;
           
+          console.log('⏰ App: 세션 만료 확인:', { now, expiresAt, isExpired: expiresAt && now >= expiresAt });
+          
           if (expiresAt && now >= expiresAt) {
-            console.log('세션이 만료되었습니다.');
+            console.log('⚠️ App: 세션이 만료되었습니다.');
             await handleSessionExpired();
             return;
           }
           
+          console.log('✅ App: 유효한 세션 발견, 사용자 설정 중...');
           setUser({
             id: session.user.id,
             email: session.user.email!,
@@ -320,10 +327,13 @@ function AppProvider({ children }: { children: ReactNode }) {
           
           console.log('🚀 Initial auth - Calling loadUserData...');
           await loadUserData();
+        } else {
+          console.log('❌ App: 세션 또는 사용자가 없음, 로그아웃 상태로 설정');
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('💥 App: Error initializing auth:', error);
       } finally {
+        console.log('🏁 App: initializeAuth 완료, isLoading을 false로 설정');
         setIsLoading(false);
       }
     };
@@ -1243,7 +1253,10 @@ function AppProvider({ children }: { children: ReactNode }) {
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const context = useContext(AppContext);
   
+  console.log('🛡️ ProtectedRoute: 렌더링 시작', { hasContext: !!context });
+  
   if (!context) {
+    console.log('❌ ProtectedRoute: context가 없음, 로딩 화면 표시');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark">
         <div className="flex flex-col items-center space-y-token-md">
@@ -1260,7 +1273,10 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   
   const { isAuthenticated, isLoading } = context;
   
+  console.log('🛡️ ProtectedRoute: 상태 확인', { isAuthenticated, isLoading });
+  
   if (isLoading) {
+    console.log('⏳ ProtectedRoute: 로딩 중, 로딩 화면 표시');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark">
         <div className="flex flex-col items-center space-y-token-md">
@@ -1274,6 +1290,12 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  
+  console.log('🛡️ ProtectedRoute: 최종 결정', { 
+    isAuthenticated, 
+    willShowChildren: isAuthenticated,
+    willRedirectToLogin: !isAuthenticated 
+  });
   
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 }
@@ -1281,7 +1303,10 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function RedirectRoute() {
   const context = useContext(AppContext);
   
+  console.log('🔄 RedirectRoute: 렌더링 시작', { hasContext: !!context });
+  
   if (!context) {
+    console.log('❌ RedirectRoute: context가 없음, 로딩 화면 표시');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark">
         <div className="flex flex-col items-center space-y-token-md">
@@ -1298,7 +1323,10 @@ function RedirectRoute() {
   
   const { isAuthenticated, isLoading } = context;
   
+  console.log('🔄 RedirectRoute: 상태 확인', { isAuthenticated, isLoading });
+  
   if (isLoading) {
+    console.log('⏳ RedirectRoute: 로딩 중, 로딩 화면 표시');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark">
         <div className="flex flex-col items-center space-y-token-md">
@@ -1314,6 +1342,10 @@ function RedirectRoute() {
   }
   
   // Redirect based on authentication status
+  console.log('🔄 RedirectRoute: 리다이렉트 결정', { 
+    isAuthenticated, 
+    redirectTo: isAuthenticated ? "/dashboard" : "/login" 
+  });
   return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
 }
 
