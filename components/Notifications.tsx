@@ -228,7 +228,7 @@ export function Notifications() {
           }
           
           // Same-day reminder
-          if (daysUntilPayment === 0 && sub.notifications.sameDay) {
+          if (daysUntilPayment === 0 && sub.notifications?.sameDay) {
             generatedNotifications.push({
               id: `${sub.id}-today-${paymentDate.getTime()}`,
               type: 'payment',
