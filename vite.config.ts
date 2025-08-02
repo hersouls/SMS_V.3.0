@@ -11,11 +11,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3003,
+    port: 3000,
     host: '0.0.0.0',
     cors: true,
     hmr: {
-      port: 3003,
+      port: 3000,
       host: 'localhost'
     },
     proxy: {
