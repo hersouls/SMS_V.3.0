@@ -162,7 +162,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public - Vite에서는 public 디렉토리를 추적해야 함
 
 # Storybook build outputs
 .out
@@ -255,7 +255,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public - Vite에서는 public 디렉토리를 추적해야 함
 
 # Storybook build outputs
 .out
