@@ -40,6 +40,9 @@ import {
 
 } from './utils/statistics';
 
+// Supabase 테스트 도구 (개발 모드에서만)
+import { runAllSupabaseTests } from './utils/supabase-manual-test';
+
 // Types
 export interface Subscription {
   id: string;
@@ -1393,6 +1396,25 @@ function App() {
             <PWAInstallPrompt />
             
             {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
+            
+            {/* Supabase 테스트 도구 (개발 모드에서만) */}
+            {import.meta.env.VITE_DEV_MODE === 'true' && (
+              <div className="fixed bottom-4 right-4 z-50">
+                <button
+                  onClick={() => {
+                    console.log('🚀 Supabase 연동 테스트 시작...');
+                    runAllSupabaseTests().then(results => {
+                      console.log('📋 테스트 완료:', results);
+                    });
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2"
+                  title="Supabase 연동 테스트 실행"
+                >
+                  🧪 Supabase 테스트
+                </button>
+              </div>
+            )}
+            
             <Toaster />
           </div>
         </Router>
