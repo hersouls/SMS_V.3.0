@@ -841,20 +841,6 @@ export async function saveStatisticsData<T>(
       default:
         conflictColumns = 'user_id,date';
     }
-
-    // Supabase에 데이터 저장 (upsert 방식)
-    const { error } = await supabase
-      .from(tableName)
-      .upsert([data], { onConflict: conflictColumns });
-
-    if (error) {
-      console.error(`통계 데이터 저장 실패 (${tableName}):`, error);
-      
-      // 재시도 로직 (최대 3회)
-      if (retryCount < 3) {
-        console.log(`재시도 중... (${retryCount + 1}/3)`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-        return saveStatisticsData(tableName, data, retryCount + 1);
       }
       
       return false;
@@ -862,12 +848,6 @@ export async function saveStatisticsData<T>(
 
     return true;
   } catch (error) {
-    console.error(`통계 데이터 저장 오류 (${tableName}):`, error);
-    
-    if (retryCount < 3) {
-      console.log(`재시도 중... (${retryCount + 1}/3)`);
-      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      return saveStatisticsData(tableName, data, retryCount + 1);
     }
     
     return false;
