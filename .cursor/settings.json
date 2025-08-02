@@ -1,0 +1,12 @@
+{
+  "ai.model": "gpt-4",
+  "ai.temperature": 0.7,
+  "tailwind.includeLanguages": {
+    "plaintext": "html",
+    "javascript": "javascript",
+    "typescript": "typescript"
+  },
+  "editor.quickSuggestions": {
+    "strings": true
+  }
+} 

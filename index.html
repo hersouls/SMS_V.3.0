@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/moonwave.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>구독관리 | Moonwave</title>
+    <meta name="description" content="구독 서비스 관리 시스템 - Moonwave SMS V.2.0" />
+    <meta name="keywords" content="구독, 관리, SMS, Moonwave" />
+    <meta name="author" content="Moonwave Team" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="구독관리" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/moonwave.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/moonwave.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/moonwave.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/moonwave.png" />
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/moonwave.png" as="image" type="image/png" />
+    
+    <!-- DNS Prefetch for external domains -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="구독관리 | Moonwave" />
+    <meta property="og:description" content="구독 서비스 관리 시스템" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sub.moonwave.kr" />
+    <meta property="og:image" content="/moonwave.png" />
+    
+    <!-- Performance optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Critical CSS inline -->
+    <style>
+      /* Critical CSS for initial render */
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+          'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Loading spinner */
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid #ffffff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Loading fallback -->
+      <div class="loading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW 등록 성공:', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW 등록 실패:', registrationError);
+            });
+        });
+      }
+    </script>
+  </body>
+</html> 

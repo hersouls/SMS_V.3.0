@@ -1,0 +1,2186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ========================================
+     MOONWAVE DESIGN SYSTEM V4.0
+     완전한 디자인 토큰 시스템
+  ======================================== */
+
+  /* Primary Colors - Blue */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;  /* DEFAULT */
+  --primary-600: #2563eb;  /* HOVER */
+  --primary-700: #1d4ed8;  /* ACTIVE */
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-950: #172554;
+
+  /* Secondary Colors - Purple */
+  --secondary-50: #faf5ff;
+  --secondary-100: #f3e8ff;
+  --secondary-200: #e9d5ff;  /* LIGHT */
+  --secondary-300: #d8b4fe;
+  --secondary-400: #c084fc;
+  --secondary-500: #a855f7;  /* DEFAULT */
+  --secondary-600: #9333ea;  /* HOVER */
+  --secondary-700: #7e22ce;  /* ACTIVE */
+  --secondary-800: #6b21a8;
+  --secondary-900: #581c87;
+  --secondary-950: #3b0764;
+
+  /* Grayscale Colors */
+  --grayscale-50: #f8fafc;   /* FOREGROUND */
+  --grayscale-100: #f1f5f9;
+  --grayscale-200: #e2e8f0;
+  --grayscale-300: #cbd5e1;
+  --grayscale-400: #94a3b8;
+  --grayscale-500: #64748b;
+  --grayscale-600: #475569;
+  --grayscale-700: #334155;
+  --grayscale-800: #1e293b;
+  --grayscale-900: #0f172a;
+  --grayscale-950: #020617;
+
+  /* Moonwave Specific Grayscale - Improved for Better Readability */
+  --moonwave-background: #0a0a1a;     /* Darker Blue-Black for better contrast */
+  --moonwave-foreground: #ffffff;     /* Pure White for maximum readability */
+  --moonwave-card: #1a1a2e;           /* Card Background */
+  --moonwave-muted: #16213e;          /* Muted Background */
+  --moonwave-muted-foreground: #a8aabc; /* Brighter Muted Text for better readability */
+  
+  /* Icon Colors - Enhanced for Better Visibility */
+  --icon-primary: #ffffff;             /* White icons for maximum visibility */
+  --icon-secondary: #e2e8f0;          /* Light gray icons for secondary elements */
+  --icon-muted: #cbd5e1;              /* Muted icons for subtle elements */
+  --icon-success: #34d399;            /* Success green icons */
+  --icon-warning: #fbbf24;            /* Warning yellow icons */
+  --icon-error: #f87171;              /* Error red icons */
+  --icon-info: #60a5fa;               /* Info blue icons */
+
+  /* State Colors */
+  --success-50: #ecfdf5;
+  --success-100: #d1fae5;
+  --success-200: #a7f3d0;
+  --success-300: #6ee7b7;
+  --success-400: #34d399;
+  --success-500: #10b981;   /* SUCCESS */
+  --success-600: #059669;
+  --success-700: #047857;
+  --success-800: #065f46;
+  --success-900: #064e3b;
+  --success-950: #022c22;
+
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-300: #fcd34d;
+  --warning-400: #fbbf24;
+  --warning-500: #f59e0b;   /* WARNING */
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  --warning-800: #92400e;
+  --warning-900: #78350f;
+  --warning-950: #451a03;
+
+  --error-50: #fef2f2;
+  --error-100: #fee2e2;
+  --error-200: #fecaca;
+  --error-300: #fca5a5;
+  --error-400: #f87171;
+  --error-500: #ef4444;     /* ERROR */
+  --error-600: #dc2626;
+  --error-700: #b91c1c;
+  --error-800: #991b1b;
+  --error-900: #7f1d1d;
+  --error-950: #450a0a;
+
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-200: #bfdbfe;
+  --info-300: #93c5fd;
+  --info-400: #60a5fa;
+  --info-500: #3b82f6;      /* INFO - Same as Primary */
+  --info-600: #2563eb;
+  --info-700: #1d4ed8;
+  --info-800: #1e40af;
+  --info-900: #1e3a8a;
+  --info-950: #172554;
+
+  /* Phase Colors for Moonwave Storytelling */
+  --phase-beginning-50: #f0f9ff;
+  --phase-beginning-100: #e0f2fe;
+  --phase-beginning-200: #bae6fd;
+  --phase-beginning-300: #7dd3fc;
+  --phase-beginning-400: #38bdf8;  /* Beginning Phase */
+  --phase-beginning-500: #0ea5e9;
+  --phase-beginning-600: #0284c7;
+  --phase-beginning-700: #0369a1;
+  --phase-beginning-800: #075985;
+  --phase-beginning-900: #0c4a6e;
+  --phase-beginning-950: #082f49;
+
+  --phase-growth-50: #faf5ff;
+  --phase-growth-100: #f3e8ff;
+  --phase-growth-200: #e9d5ff;
+  --phase-growth-300: #d8b4fe;
+  --phase-growth-400: #c084fc;  /* Growth Phase */
+  --phase-growth-500: #a855f7;
+  --phase-growth-600: #9333ea;
+  --phase-growth-700: #7e22ce;
+  --phase-growth-800: #6b21a8;
+  --phase-growth-900: #581c87;
+  --phase-growth-950: #3b0764;
+
+  --phase-challenge-50: #fff7ed;
+  --phase-challenge-100: #ffedd5;
+  --phase-challenge-200: #fed7aa;
+  --phase-challenge-300: #fdba74;
+  --phase-challenge-400: #fb923c;  /* Challenge Phase */
+  --phase-challenge-500: #f97316;
+  --phase-challenge-600: #ea580c;
+  --phase-challenge-700: #c2410c;
+  --phase-challenge-800: #9a3412;
+  --phase-challenge-900: #7c2d12;
+  --phase-challenge-950: #431407;
+
+  --phase-shine-50: #fefce8;
+  --phase-shine-100: #fef9c3;
+  --phase-shine-200: #fef08a;
+  --phase-shine-300: #fde047;
+  --phase-shine-400: #facc15;  /* Shine Phase */
+  --phase-shine-500: #eab308;
+  --phase-shine-600: #ca8a04;
+  --phase-shine-700: #a16207;
+  --phase-shine-800: #854d0e;
+  --phase-shine-900: #713f12;
+  --phase-shine-950: #422006;
+
+  /* Glassmorphism Optimized Colors */
+  --glass-overlay-subtle: rgba(248, 250, 252, 0.02);
+  --glass-overlay-light: rgba(248, 250, 252, 0.05);
+  --glass-overlay-default: rgba(248, 250, 252, 0.08);
+  --glass-overlay-strong: rgba(248, 250, 252, 0.12);
+  --glass-overlay-intense: rgba(248, 250, 252, 0.16);
+
+  --glass-border-subtle: rgba(248, 250, 252, 0.05);
+  --glass-border-light: rgba(248, 250, 252, 0.1);
+  --glass-border-default: rgba(248, 250, 252, 0.15);
+  --glass-border-strong: rgba(248, 250, 252, 0.25);
+  --glass-border-accent: rgba(59, 130, 246, 0.3);
+
+  /* ===========================================
+     DESIGN TOKENS - 표준화된 디자인 시스템
+  =========================================== */
+
+  /* Typography Scale */
+  --font-size-xs: 0.75rem;      /* 12px */
+  --font-size-sm: 0.875rem;     /* 14px */
+  --font-size-base: 1rem;       /* 16px */
+  --font-size-lg: 1.125rem;     /* 18px */
+  --font-size-xl: 1.25rem;      /* 20px */
+  --font-size-2xl: 1.5rem;      /* 24px */
+  --font-size-3xl: 1.875rem;    /* 30px */
+  --font-size-4xl: 2.25rem;     /* 36px */
+  --font-size-5xl: 3rem;        /* 48px */
+  --font-size-6xl: 3.75rem;     /* 60px */
+  --font-size-7xl: 4.5rem;      /* 72px */
+
+  /* Korean Typography */
+  --font-size-xs-ko: var(--font-size-xs);
+  --font-size-sm-ko: var(--font-size-sm);
+  --font-size-base-ko: var(--font-size-base);
+  --font-size-lg-ko: var(--font-size-lg);
+  --font-size-xl-ko: var(--font-size-xl);
+  --font-size-2xl-ko: var(--font-size-2xl);
+  --font-size-3xl-ko: var(--font-size-3xl);
+  --font-size-4xl-ko: var(--font-size-4xl);
+  --font-size-5xl-ko: var(--font-size-5xl);
+  --font-size-6xl-ko: var(--font-size-6xl);
+  --font-size-7xl-ko: var(--font-size-7xl);
+
+  --tracking-ko-tight: -0.02em;
+  --tracking-ko-normal: -0.01em;
+  --tracking-ko-wide: 0;
+
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+
+  /* Spacing Scale - 표준화된 간격 시스템 */
+  --spacing-0: 0;
+  --spacing-px: 1px;
+  --spacing-0-5: 0.125rem;     /* 2px */
+  --spacing-1: 0.25rem;        /* 4px */
+  --spacing-1-5: 0.375rem;     /* 6px */
+  --spacing-2: 0.5rem;         /* 8px */
+  --spacing-2-5: 0.625rem;     /* 10px */
+  --spacing-3: 0.75rem;        /* 12px */
+  --spacing-3-5: 0.875rem;     /* 14px */
+  --spacing-4: 1rem;           /* 16px */
+  --spacing-5: 1.25rem;        /* 20px */
+  --spacing-6: 1.5rem;         /* 24px */
+  --spacing-7: 1.75rem;        /* 28px */
+  --spacing-8: 2rem;           /* 32px */
+  --spacing-9: 2.25rem;        /* 36px */
+  --spacing-10: 2.5rem;        /* 40px */
+  --spacing-11: 2.75rem;       /* 44px */
+  --spacing-12: 3rem;          /* 48px */
+  --spacing-14: 3.5rem;        /* 56px */
+  --spacing-16: 4rem;          /* 64px */
+  --spacing-20: 5rem;          /* 80px */
+  --spacing-24: 6rem;          /* 96px */
+  --spacing-28: 7rem;          /* 112px */
+  --spacing-32: 8rem;          /* 128px */
+
+  /* Design Token Aliases - 시맨틱 네이밍 */
+  --token-xs: var(--spacing-1);      /* 4px */
+  --token-sm: var(--spacing-2);      /* 8px */
+  --token-md: var(--spacing-4);      /* 16px */
+  --token-lg: var(--spacing-6);      /* 24px */
+  --token-xl: var(--spacing-8);      /* 32px */
+  --token-2xl: var(--spacing-12);    /* 48px */
+
+  /* Border Radius Scale */
+  --radius-none: 0;
+  --radius-sm: 0.125rem;        /* 2px */
+  --radius-base: 0.25rem;       /* 4px */
+  --radius-md: 0.375rem;        /* 6px */
+  --radius-lg: 0.5rem;          /* 8px */
+  --radius-xl: 0.75rem;         /* 12px */
+  --radius-2xl: 1rem;           /* 16px */
+  --radius-3xl: 1.5rem;         /* 24px */
+  --radius-full: 9999px;
+
+  /* Default Radius */
+  --radius: var(--radius-xl);
+
+  /* Shadow Scale */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 15, 35, 0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(15, 15, 35, 0.1);
+  --shadow-base: 0 1px 3px 0 rgba(15, 15, 35, 0.1), 0 1px 2px 0 rgba(15, 15, 35, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(15, 15, 35, 0.15), 0 2px 4px -1px rgba(15, 15, 35, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 15, 35, 0.2), 0 4px 6px -2px rgba(15, 15, 35, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 15, 35, 0.25), 0 10px 10px -5px rgba(15, 15, 35, 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgba(15, 15, 35, 0.35);
+  --shadow-inner: inset 0 2px 4px 0 rgba(15, 15, 35, 0.06);
+  --shadow-glow-primary: 0 0 20px rgba(59, 130, 246, 0.3);
+  --shadow-glow-primary-strong: 0 0 40px rgba(59, 130, 246, 0.4);
+  --shadow-glow-secondary: 0 0 20px rgba(168, 85, 247, 0.3);
+  --shadow-glow-secondary-strong: 0 0 40px rgba(168, 85, 247, 0.4);
+
+  /* Z-Index Scale */
+  --z-0: 0;
+  --z-10: 10;
+  --z-20: 20;
+  --z-30: 30;
+  --z-40: 40;
+  --z-50: 50;
+
+  /* System Variables */
+  --font-size: var(--font-size-sm);
+  --background: var(--moonwave-background);
+  --foreground: #ffffff;
+  --card: var(--moonwave-card);
+  --card-foreground: #ffffff;
+  --popover: var(--moonwave-card);
+  --popover-foreground: #ffffff;
+  --primary: var(--primary-500);
+  --primary-foreground: #ffffff;
+  --secondary: var(--secondary-500);
+  --secondary-foreground: #ffffff;
+  --muted: var(--moonwave-muted);
+  --muted-foreground: var(--moonwave-muted-foreground);
+  --accent: var(--primary-500);
+  --accent-foreground: #ffffff;
+  --destructive: var(--error-500);
+  --destructive-foreground: #ffffff;
+  --border: var(--glass-border-default);
+  --input: var(--glass-overlay-default);
+  --input-background: var(--glass-overlay-light);
+  --switch-background: var(--grayscale-600);
+  --ring: var(--primary-500);
+  --chart-1: var(--primary-500);
+  --chart-2: var(--secondary-500);
+  --chart-3: var(--success-500);
+  --chart-4: var(--warning-500);
+  --chart-5: var(--error-500);
+  --sidebar: var(--moonwave-card);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--primary-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--moonwave-muted);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: var(--glass-border-default);
+  --sidebar-ring: var(--primary-500);
+}
+
+.dark {
+  /* Dark mode는 동일하게 유지 (Moonwave는 본질적으로 다크 테마) */
+  --background: var(--moonwave-background);
+  --foreground: #ffffff;
+  --card: var(--moonwave-card);
+  --card-foreground: #ffffff;
+  --popover: var(--moonwave-card);
+  --popover-foreground: #ffffff;
+  --primary: var(--primary-500);
+  --primary-foreground: #ffffff;
+  --secondary: var(--secondary-500);
+  --secondary-foreground: #ffffff;
+  --muted: var(--moonwave-muted);
+  --muted-foreground: var(--moonwave-muted-foreground);
+  --accent: var(--primary-500);
+  --accent-foreground: #ffffff;
+  --destructive: var(--error-500);
+  --destructive-foreground: #ffffff;
+  --border: var(--glass-border-default);
+  --input: var(--glass-overlay-default);
+  --ring: var(--primary-500);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Design Token Spacing for Tailwind */
+  --spacing-token-xs: var(--token-xs);
+  --spacing-token-sm: var(--token-sm);
+  --spacing-token-md: var(--token-md);
+  --spacing-token-lg: var(--token-lg);
+  --spacing-token-xl: var(--token-xl);
+  --spacing-token-2xl: var(--token-2xl);
+
+  /* Optimized Color Palette for Tailwind */
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
+  --color-primary-950: var(--primary-950);
+
+  --color-secondary-50: var(--secondary-50);
+  --color-secondary-100: var(--secondary-100);
+  --color-secondary-200: var(--secondary-200);
+  --color-secondary-300: var(--secondary-300);
+  --color-secondary-400: var(--secondary-400);
+  --color-secondary-500: var(--secondary-500);
+  --color-secondary-600: var(--secondary-600);
+  --color-secondary-700: var(--secondary-700);
+  --color-secondary-800: var(--secondary-800);
+  --color-secondary-900: var(--secondary-900);
+  --color-secondary-950: var(--secondary-950);
+
+  --color-gray-50: var(--grayscale-50);
+  --color-gray-100: var(--grayscale-100);
+  --color-gray-200: var(--grayscale-200);
+  --color-gray-300: var(--grayscale-300);
+  --color-gray-400: var(--grayscale-400);
+  --color-gray-500: var(--grayscale-500);
+  --color-gray-600: var(--grayscale-600);
+  --color-gray-700: var(--grayscale-700);
+  --color-gray-800: var(--grayscale-800);
+  --color-gray-900: var(--grayscale-900);
+  --color-gray-950: var(--grayscale-950);
+
+  --color-success-50: var(--success-50);
+  --color-success-100: var(--success-100);
+  --color-success-200: var(--success-200);
+  --color-success-300: var(--success-300);
+  --color-success-400: var(--success-400);
+  --color-success-500: var(--success-500);
+  --color-success-600: var(--success-600);
+  --color-success-700: var(--success-700);
+  --color-success-800: var(--success-800);
+  --color-success-900: var(--success-900);
+  --color-success-950: var(--success-950);
+
+  --color-warning-50: var(--warning-50);
+  --color-warning-100: var(--warning-100);
+  --color-warning-200: var(--warning-200);
+  --color-warning-300: var(--warning-300);
+  --color-warning-400: var(--warning-400);
+  --color-warning-500: var(--warning-500);
+  --color-warning-600: var(--warning-600);
+  --color-warning-700: var(--warning-700);
+  --color-warning-800: var(--warning-800);
+  --color-warning-900: var(--warning-900);
+  --color-warning-950: var(--warning-950);
+
+  --color-error-50: var(--error-50);
+  --color-error-100: var(--error-100);
+  --color-error-200: var(--error-200);
+  --color-error-300: var(--error-300);
+  --color-error-400: var(--error-400);
+  --color-error-500: var(--error-500);
+  --color-error-600: var(--error-600);
+  --color-error-700: var(--error-700);
+  --color-error-800: var(--error-800);
+  --color-error-900: var(--error-900);
+  --color-error-950: var(--error-950);
+
+  --color-info-50: var(--info-50);
+  --color-info-100: var(--info-100);
+  --color-info-200: var(--info-200);
+  --color-info-300: var(--info-300);
+  --color-info-400: var(--info-400);
+  --color-info-500: var(--info-500);
+  --color-info-600: var(--info-600);
+  --color-info-700: var(--info-700);
+  --color-info-800: var(--info-800);
+  --color-info-900: var(--info-900);
+  --color-info-950: var(--info-950);
+
+  /* Phase Colors */
+  --color-phase-beginning-400: var(--phase-beginning-400);
+  --color-phase-growth-400: var(--phase-growth-400);
+  --color-phase-challenge-400: var(--phase-challenge-400);
+  --color-phase-shine-400: var(--phase-shine-400);
+}
+
+/* =====================================================
+   MOONWAVE 애니메이션 & 인터랙션 시스템 V2.0
+   완전한 애니메이션과 사용자 인터랙션 지원
+===================================================== */
+
+/* 웨이브 애니메이션 키프레임 */
+@keyframes wave {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes wave-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes wave-gentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1deg);
+  }
+}
+
+@keyframes wave-flow {
+  0% {
+    transform: translateX(-100px);
+  }
+  100% {
+    transform: translateX(100px);
+  }
+}
+
+/* 부드러운 애니메이션 키프레임 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes glow-primary {
+  0%, 100% {
+    box-shadow: var(--shadow-glow-primary);
+  }
+  50% {
+    box-shadow: var(--shadow-glow-primary-strong);
+  }
+}
+
+@keyframes glow-secondary {
+  0%, 100% {
+    box-shadow: var(--shadow-glow-secondary);
+  }
+  50% {
+    box-shadow: var(--shadow-glow-secondary-strong);
+  }
+}
+
+/* 슬라이드 애니메이션 */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 페이드 애니메이션 */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes rotate-in {
+  from {
+    transform: rotate(-180deg) scale(0);
+  }
+  to {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 회전 & 스케일 애니메이션 */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+    transform: translate3d(0,0,0);
+  }
+  40%, 43% {
+    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+    transform: translate3d(0, -30px, 0);
+  }
+  70% {
+    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+    transform: translate3d(0, -15px, 0);
+  }
+  90% {
+    transform: translate3d(0,-4px,0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* 글래스모피즘 애니메이션 */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glass-breathe {
+  0%, 100% {
+    backdrop-filter: blur(16px);
+    background: var(--glass-overlay-default);
+  }
+  50% {
+    backdrop-filter: blur(20px);
+    background: var(--glass-overlay-strong);
+  }
+}
+
+/* 애니메이션 클래스 정의 */
+.wave {
+  animation: wave 4s ease-in-out infinite;
+}
+
+.wave-pulse {
+  animation: wave-pulse 2s ease-in-out infinite;
+}
+
+.wave-gentle {
+  animation: wave-gentle 4s ease-in-out infinite;
+}
+
+.wave-flow {
+  animation: wave-flow 8s linear infinite;
+}
+
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.glow {
+  animation: glow-primary 2s ease-in-out infinite alternate;
+}
+
+.glow-primary {
+  animation: glow-primary 2s ease-in-out infinite alternate;
+}
+
+.glow-secondary {
+  animation: glow-secondary 2s ease-in-out infinite alternate;
+}
+
+.slide-up {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+.slide-down {
+  animation: slide-down 0.5s ease-out forwards;
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.6s ease-out forwards;
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.6s ease-out forwards;
+}
+
+.fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.fade-out {
+  animation: fade-out 0.5s ease-out forwards;
+}
+
+.fade-in-scale {
+  animation: fade-in-scale 0.6s ease-out forwards;
+}
+
+.fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.fade-in-down {
+  animation: fade-in-down 0.6s ease-out forwards;
+}
+
+.fade-in-left {
+  animation: fade-in-left 0.6s ease-out forwards;
+}
+
+.fade-in-right {
+  animation: fade-in-right 0.6s ease-out forwards;
+}
+
+.slide-in-up {
+  animation: slide-in-up 0.6s ease-out forwards;
+}
+
+.slide-in-down {
+  animation: slide-in-down 0.6s ease-out forwards;
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.6s ease-out forwards;
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.6s ease-out forwards;
+}
+
+.scale-in {
+  animation: scale-in 0.6s ease-out forwards;
+}
+
+.rotate-in {
+  animation: rotate-in 0.6s ease-out forwards;
+}
+
+.bounce-in {
+  animation: bounce-in 0.6s ease-out forwards;
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.shimmer-effect {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.bounce {
+  animation: bounce 1s infinite;
+}
+
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.glass-breathe {
+  animation: glass-breathe 4s ease-in-out infinite;
+}
+
+/* =====================================================
+   인터랙션 & 호버 효과 유틸리티 클래스
+===================================================== */
+
+/* 기본 전환 효과 */
+.transition-base {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-smooth {
+  transition: all 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.transition-bounce {
+  transition: all 600ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.transition-fast {
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-slow {
+  transition: all 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 성능 최적화 */
+.transform-gpu {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.will-change-auto {
+  will-change: auto;
+}
+
+/* 카드 호버 효과 */
+.hover-card {
+  @apply transition-all duration-300 transform-gpu;
+}
+
+.hover-card:hover {
+  background: rgba(248, 250, 252, 0.15);
+  border-color: rgba(248, 250, 252, 0.4);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+}
+
+.hover-card-subtle:hover {
+  background: rgba(248, 250, 252, 0.08);
+  border-color: rgba(248, 250, 252, 0.2);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.hover-card-strong:hover {
+  background: rgba(248, 250, 252, 0.2);
+  border-color: rgba(248, 250, 252, 0.5);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2xl);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-scale-sm:hover {
+  transform: scale(1.01);
+}
+
+.hover-scale-lg:hover {
+  transform: scale(1.05);
+}
+
+/* 버튼 호버 효과 */
+.hover-button {
+  @apply transition-all duration-200 transform-gpu;
+}
+
+.hover-button:hover {
+  background: rgba(248, 250, 252, 0.3);
+  transform: translateY(-1px);
+}
+
+.hover-button:active {
+  transform: scale(0.95);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.hover-lift-sm:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.hover-lift-lg:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* 글로우 호버 효과 */
+.hover-glow-primary:hover {
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.hover-glow-secondary:hover {
+  box-shadow: var(--shadow-glow-secondary);
+}
+
+.hover-glow-strong:hover {
+  box-shadow: var(--shadow-glow-primary-strong);
+}
+
+/* 테두리 호버 효과 */
+.hover-border:hover {
+  border-color: rgba(248, 250, 252, 0.4);
+}
+
+.hover-border-primary:hover {
+  border-color: var(--primary-500);
+}
+
+.hover-border-secondary:hover {
+  border-color: var(--secondary-500);
+}
+
+/* 투명도 호버 효과 */
+.hover-opacity:hover {
+  opacity: 0.8;
+}
+
+.hover-opacity-75:hover {
+  opacity: 0.75;
+}
+
+.hover-opacity-50:hover {
+  opacity: 0.5;
+}
+
+/* 회전 호버 효과 */
+.hover-rotate:hover {
+  transform: rotate(5deg);
+}
+
+.hover-rotate-sm:hover {
+  transform: rotate(2deg);
+}
+
+.hover-rotate-lg:hover {
+  transform: rotate(10deg);
+}
+
+/* 인터랙티브 상태 */
+.interactive {
+  @apply transition-all duration-200 cursor-pointer transform-gpu;
+}
+
+.interactive:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+
+.interactive:active {
+  transform: scale(0.98);
+}
+
+.interactive-card {
+  @apply transition-all duration-300 cursor-pointer transform-gpu;
+}
+
+.interactive-card:hover {
+  background: rgba(248, 250, 252, 0.08);
+  border-color: rgba(248, 250, 252, 0.2);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.interactive-card:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* =====================================================
+   접근성 & 키보드 네비게이션 지원
+===================================================== */
+
+/* 포커스 스타일 */
+.focus-ring {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.focus-ring-inset {
+  outline: 2px solid var(--primary-500);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+}
+
+.focus-ring-error {
+  outline: 2px solid var(--error-500);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.focus-ring-success {
+  outline: 2px solid var(--success-500);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* 스크린 리더 전용 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* 키보드 네비게이션 */
+.keyboard-navigation {
+  outline: none;
+}
+
+.keyboard-navigation:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* 터치 친화적 크기 */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.touch-target-sm {
+  min-height: 36px;
+  min-width: 36px;
+}
+
+.touch-target-lg {
+  min-height: 52px;
+  min-width: 52px;
+}
+
+/* =====================================================
+   모션 감소 지원 (접근성)
+===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .wave,
+  .wave-pulse,
+  .wave-gentle,
+  .wave-flow,
+  .float,
+  .glow,
+  .glow-primary,
+  .glow-secondary,
+  .shimmer,
+  .glass-breathe,
+  .spin,
+  .bounce,
+  .pulse,
+  .ping {
+    animation: none !important;
+  }
+  
+  .hover-card:hover,
+  .hover-card-subtle:hover,
+  .hover-card-strong:hover,
+  .hover-scale:hover,
+  .hover-scale-sm:hover,
+  .hover-scale-lg:hover,
+  .hover-lift:hover,
+  .hover-lift-sm:hover,
+  .hover-lift-lg:hover,
+  .hover-rotate:hover,
+  .hover-rotate-sm:hover,
+  .hover-rotate-lg:hover {
+    transform: none !important;
+  }
+}
+
+/* =====================================================
+   고대비 모드 지원
+===================================================== */
+
+@media (prefers-contrast: high) {
+  .glass-subtle,
+  .glass-light,
+  .glass-default,
+  .glass-strong,
+  .glass-intense {
+    background: rgba(248, 250, 252, 0.2);
+    border: 2px solid rgba(248, 250, 252, 0.5);
+  }
+  
+  .hover-card:hover,
+  .hover-card-subtle:hover,
+  .hover-card-strong:hover {
+    border: 2px solid rgba(248, 250, 252, 0.8);
+  }
+}
+
+/* Design Token Utility Classes */
+.space-token-xs > * + * { margin-top: var(--token-xs); }
+.space-token-sm > * + * { margin-top: var(--token-sm); }
+.space-token-md > * + * { margin-top: var(--token-md); }
+.space-token-lg > * + * { margin-top: var(--token-lg); }
+.space-token-xl > * + * { margin-top: var(--token-xl); }
+.space-token-2xl > * + * { margin-top: var(--token-2xl); }
+
+.space-x-token-xs > * + * { margin-left: var(--token-xs); }
+.space-x-token-sm > * + * { margin-left: var(--token-sm); }
+.space-x-token-md > * + * { margin-left: var(--token-md); }
+.space-x-token-lg > * + * { margin-left: var(--token-lg); }
+.space-x-token-xl > * + * { margin-left: var(--token-xl); }
+.space-x-token-2xl > * + * { margin-left: var(--token-2xl); }
+
+.space-y-token-xs > * + * { margin-top: var(--token-xs); }
+.space-y-token-sm > * + * { margin-top: var(--token-sm); }
+.space-y-token-md > * + * { margin-top: var(--token-md); }
+.space-y-token-lg > * + * { margin-top: var(--token-lg); }
+.space-y-token-xl > * + * { margin-top: var(--token-xl); }
+.space-y-token-2xl > * + * { margin-top: var(--token-2xl); }
+
+.p-token-xs { padding: var(--token-xs); }
+.p-token-sm { padding: var(--token-sm); }
+.p-token-md { padding: var(--token-md); }
+.p-token-lg { padding: var(--token-lg); }
+.p-token-xl { padding: var(--token-xl); }
+.p-token-2xl { padding: var(--token-2xl); }
+
+.px-token-xs { padding-left: var(--token-xs); padding-right: var(--token-xs); }
+.px-token-sm { padding-left: var(--token-sm); padding-right: var(--token-sm); }
+.px-token-md { padding-left: var(--token-md); padding-right: var(--token-md); }
+.px-token-lg { padding-left: var(--token-lg); padding-right: var(--token-lg); }
+.px-token-xl { padding-left: var(--token-xl); padding-right: var(--token-xl); }
+.px-token-2xl { padding-left: var(--token-2xl); padding-right: var(--token-2xl); }
+
+.py-token-xs { padding-top: var(--token-xs); padding-bottom: var(--token-xs); }
+.py-token-sm { padding-top: var(--token-sm); padding-bottom: var(--token-sm); }
+.py-token-md { padding-top: var(--token-md); padding-bottom: var(--token-md); }
+.py-token-lg { padding-top: var(--token-lg); padding-bottom: var(--token-lg); }
+.py-token-xl { padding-top: var(--token-xl); padding-bottom: var(--token-xl); }
+.py-token-2xl { padding-top: var(--token-2xl); padding-bottom: var(--token-2xl); }
+
+.pt-token-xs { padding-top: var(--token-xs); }
+.pt-token-sm { padding-top: var(--token-sm); }
+.pt-token-md { padding-top: var(--token-md); }
+.pt-token-lg { padding-top: var(--token-lg); }
+.pt-token-xl { padding-top: var(--token-xl); }
+.pt-token-2xl { padding-top: var(--token-2xl); }
+
+.pb-token-xs { padding-bottom: var(--token-xs); }
+.pb-token-sm { padding-bottom: var(--token-sm); }
+.pb-token-md { padding-bottom: var(--token-md); }
+.pb-token-lg { padding-bottom: var(--token-lg); }
+.pb-token-xl { padding-bottom: var(--token-xl); }
+.pb-token-2xl { padding-bottom: var(--token-2xl); }
+
+.pl-token-xs { padding-left: var(--token-xs); }
+.pl-token-sm { padding-left: var(--token-sm); }
+.pl-token-md { padding-left: var(--token-md); }
+.pl-token-lg { padding-left: var(--token-lg); }
+.pl-token-xl { padding-left: var(--token-xl); }
+.pl-token-2xl { padding-left: var(--token-2xl); }
+
+.pr-token-xs { padding-right: var(--token-xs); }
+.pr-token-sm { padding-right: var(--token-sm); }
+.pr-token-md { padding-right: var(--token-md); }
+.pr-token-lg { padding-right: var(--token-lg); }
+.pr-token-xl { padding-right: var(--token-xl); }
+.pr-token-2xl { padding-right: var(--token-2xl); }
+
+.m-token-xs { margin: var(--token-xs); }
+.m-token-sm { margin: var(--token-sm); }
+.m-token-md { margin: var(--token-md); }
+.m-token-lg { margin: var(--token-lg); }
+.m-token-xl { margin: var(--token-xl); }
+.m-token-2xl { margin: var(--token-2xl); }
+
+.mx-token-xs { margin-left: var(--token-xs); margin-right: var(--token-xs); }
+.mx-token-sm { margin-left: var(--token-sm); margin-right: var(--token-sm); }
+.mx-token-md { margin-left: var(--token-md); margin-right: var(--token-md); }
+.mx-token-lg { margin-left: var(--token-lg); margin-right: var(--token-lg); }
+.mx-token-xl { margin-left: var(--token-xl); margin-right: var(--token-xl); }
+.mx-token-2xl { margin-left: var(--token-2xl); margin-right: var(--token-2xl); }
+
+.my-token-xs { margin-top: var(--token-xs); margin-bottom: var(--token-xs); }
+.my-token-sm { margin-top: var(--token-sm); margin-bottom: var(--token-sm); }
+.my-token-md { margin-top: var(--token-md); margin-bottom: var(--token-md); }
+.my-token-lg { margin-top: var(--token-lg); margin-bottom: var(--token-lg); }
+.my-token-xl { margin-top: var(--token-xl); margin-bottom: var(--token-xl); }
+.my-token-2xl { margin-top: var(--token-2xl); margin-bottom: var(--token-2xl); }
+
+.mt-token-xs { margin-top: var(--token-xs); }
+.mt-token-sm { margin-top: var(--token-sm); }
+.mt-token-md { margin-top: var(--token-md); }
+.mt-token-lg { margin-top: var(--token-lg); }
+.mt-token-xl { margin-top: var(--token-xl); }
+.mt-token-2xl { margin-top: var(--token-2xl); }
+
+.mb-token-xs { margin-bottom: var(--token-xs); }
+.mb-token-sm { margin-bottom: var(--token-sm); }
+.mb-token-md { margin-bottom: var(--token-md); }
+.mb-token-lg { margin-bottom: var(--token-lg); }
+.mb-token-xl { margin-bottom: var(--token-xl); }
+.mb-token-2xl { margin-bottom: var(--token-2xl); }
+
+.ml-token-xs { margin-left: var(--token-xs); }
+.ml-token-sm { margin-left: var(--token-sm); }
+.ml-token-md { margin-left: var(--token-md); }
+.ml-token-lg { margin-left: var(--token-lg); }
+.ml-token-xl { margin-left: var(--token-xl); }
+.ml-token-2xl { margin-left: var(--token-2xl); }
+
+.mr-token-xs { margin-right: var(--token-xs); }
+.mr-token-sm { margin-right: var(--token-sm); }
+.mr-token-md { margin-right: var(--token-md); }
+.mr-token-lg { margin-right: var(--token-lg); }
+.mr-token-xl { margin-right: var(--token-xl); }
+.mr-token-2xl { margin-right: var(--token-2xl); }
+
+.gap-token-xs { gap: var(--token-xs); }
+.gap-token-sm { gap: var(--token-sm); }
+.gap-token-md { gap: var(--token-md); }
+.gap-token-lg { gap: var(--token-lg); }
+.gap-token-xl { gap: var(--token-xl); }
+.gap-token-2xl { gap: var(--token-2xl); }
+
+/* Korean Typography Utilities */
+.text-xs-ko { font-size: var(--font-size-xs-ko); }
+.text-sm-ko { font-size: var(--font-size-sm-ko); }
+.text-base-ko { font-size: var(--font-size-base-ko); }
+.text-lg-ko { font-size: var(--font-size-lg-ko); }
+.text-xl-ko { font-size: var(--font-size-xl-ko); }
+.text-2xl-ko { font-size: var(--font-size-2xl-ko); }
+.text-3xl-ko { font-size: var(--font-size-3xl-ko); }
+.text-4xl-ko { font-size: var(--font-size-4xl-ko); }
+.text-5xl-ko { font-size: var(--font-size-5xl-ko); }
+.text-6xl-ko { font-size: var(--font-size-6xl-ko); }
+.text-7xl-ko { font-size: var(--font-size-7xl-ko); }
+
+.tracking-ko-tight { letter-spacing: var(--tracking-ko-tight); }
+.tracking-ko-normal { letter-spacing: var(--tracking-ko-normal); }
+.tracking-ko-wide { letter-spacing: var(--tracking-ko-wide); }
+
+.break-keep-ko {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* Force white text for better readability */
+.text-white-force {
+  color: #ffffff !important;
+}
+
+/* Enhanced contrast for better readability */
+.text-high-contrast {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Glassmorphism Utilities */
+.glass-subtle {
+  background: var(--glass-overlay-subtle);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--glass-border-subtle);
+}
+
+.glass-light {
+  background: var(--glass-overlay-light);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border-light);
+}
+
+.glass-default {
+  background: var(--glass-overlay-default);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border-default);
+}
+
+.glass-strong {
+  background: var(--glass-overlay-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border-strong);
+}
+
+.glass-intense {
+  background: var(--glass-overlay-intense);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border-strong);
+}
+
+.glass-accent {
+  background: rgba(59, 130, 246, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border-accent);
+}
+
+/* Utility Classes for Optimized Color System */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+}
+
+.bg-gradient-secondary {
+  background: linear-gradient(135deg, var(--secondary-500), var(--secondary-700));
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, var(--success-500), var(--success-700));
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, var(--warning-500), var(--warning-700));
+}
+
+.bg-gradient-error {
+  background: linear-gradient(135deg, var(--error-500), var(--error-700));
+}
+
+.bg-gradient-moonwave {
+  background: linear-gradient(135deg, var(--primary-400), var(--secondary-400));
+}
+
+/* Phase Color Utilities */
+.bg-gradient-phase-beginning {
+  background: linear-gradient(135deg, var(--phase-beginning-400), rgba(56, 189, 248, 0.3));
+}
+
+.bg-gradient-phase-growth {
+  background: linear-gradient(135deg, var(--phase-growth-400), rgba(192, 132, 252, 0.3));
+}
+
+.bg-gradient-phase-challenge {
+  background: linear-gradient(135deg, var(--phase-challenge-400), rgba(251, 146, 60, 0.3));
+}
+
+.bg-gradient-phase-shine {
+  background: linear-gradient(135deg, var(--phase-shine-400), rgba(250, 204, 21, 0.3));
+}
+
+.text-phase-beginning {
+  color: var(--phase-beginning-400);
+}
+
+.text-phase-growth {
+  color: var(--phase-growth-400);
+}
+
+.text-phase-challenge {
+  color: var(--phase-challenge-400);
+}
+
+.text-phase-shine {
+  color: var(--phase-shine-400);
+}
+
+.bg-phase-beginning-light {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.bg-phase-growth-light {
+  background: rgba(192, 132, 252, 0.2);
+}
+
+.bg-phase-challenge-light {
+  background: rgba(251, 146, 60, 0.2);
+}
+
+.bg-phase-shine-light {
+  background: rgba(250, 204, 21, 0.2);
+}
+
+.border-phase-beginning {
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.border-phase-growth {
+  border-color: rgba(192, 132, 252, 0.3);
+}
+
+.border-phase-challenge {
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.border-phase-shine {
+  border-color: rgba(250, 204, 21, 0.3);
+}
+
+/* Text Gradient Utilities */
+.text-gradient-primary {
+  background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-secondary {
+  background: linear-gradient(135deg, var(--secondary-400), var(--secondary-600));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-moonwave {
+  background: linear-gradient(135deg, var(--primary-400), var(--secondary-400));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@layer base {
+  * {
+    @apply outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Enhanced focus styles for accessibility */
+  :focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+/**
+ * Base typography optimized for Korean - Following Design Guide
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    /* H1: text-4xl-ko font-bold - 메인 제목 */
+    h1 {
+      font-size: var(--font-size-4xl-ko);
+      font-weight: var(--font-weight-bold);
+      line-height: var(--line-height-tight);
+      letter-spacing: var(--tracking-ko-normal);
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      color: #ffffff;
+    }
+
+    /* H2: text-3xl-ko font-semibold - 섹션 제목 */
+    h2 {
+      font-size: var(--font-size-3xl-ko);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-snug);
+      letter-spacing: var(--tracking-ko-normal);
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      color: #ffffff;
+    }
+
+    /* H3: text-2xl-ko font-semibold - 서브 섹션 */
+    h3 {
+      font-size: var(--font-size-2xl-ko);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-normal);
+      letter-spacing: var(--tracking-ko-normal);
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      color: #ffffff;
+    }
+
+    /* H4: text-xl-ko font-medium - 카드 제목 */
+    h4 {
+      font-size: var(--font-size-xl-ko);
+      font-weight: var(--font-weight-medium);
+      line-height: var(--line-height-normal);
+      letter-spacing: var(--tracking-ko-normal);
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      color: #ffffff;
+    }
+
+    /* text-base-ko - 일반 텍스트 */
+    p {
+      font-size: var(--font-size-base-ko);
+      font-weight: var(--font-weight-normal);
+      line-height: var(--line-height-relaxed);
+      letter-spacing: var(--tracking-ko-normal);
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      color: #ffffff;
+    }
+
+    /* text-sm-ko - 부가 정보 */
+    label {
+      font-size: var(--font-size-sm-ko);
+      font-weight: var(--font-weight-medium);
+      line-height: var(--line-height-normal);
+      letter-spacing: var(--tracking-ko-normal);
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      color: #ffffff;
+    }
+
+    button {
+      font-size: var(--font-size-base-ko);
+      font-weight: var(--font-weight-medium);
+      line-height: var(--line-height-normal);
+      letter-spacing: var(--tracking-ko-normal);
+    }
+
+    input, textarea, select {
+      font-size: var(--font-size-base-ko);
+      font-weight: var(--font-weight-normal);
+      line-height: var(--line-height-normal);
+      letter-spacing: var(--tracking-ko-normal);
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Global Icon and Text Improvements for Better Readability */
+* {
+  /* Ensure all icons are visible */
+  --tw-text-opacity: 1;
+}
+
+/* Icon color improvements */
+svg {
+  color: var(--icon-primary);
+  /* fill: currentColor; - Removed to keep icons as outline style */
+}
+
+/* Text color improvements - override any black/gray text */
+.text-black,
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-gray-600,
+.text-gray-500,
+.text-gray-400,
+.text-gray-300,
+.text-gray-200,
+.text-gray-100,
+.text-slate-900,
+.text-slate-800,
+.text-slate-700,
+.text-slate-600,
+.text-slate-500,
+.text-slate-400,
+.text-slate-300,
+.text-slate-200,
+.text-slate-100,
+.text-zinc-900,
+.text-zinc-800,
+.text-zinc-700,
+.text-zinc-600,
+.text-zinc-500,
+.text-zinc-400,
+.text-zinc-300,
+.text-zinc-200,
+.text-zinc-100,
+.text-neutral-900,
+.text-neutral-800,
+.text-neutral-700,
+.text-neutral-600,
+.text-neutral-500,
+.text-neutral-400,
+.text-neutral-300,
+.text-neutral-200,
+.text-neutral-100 {
+  color: #ffffff !important;
+}
+
+/* Force white text for better readability */
+.text-white-force {
+  color: #ffffff !important;
+}
+
+/* Enhanced contrast for better readability */
+.text-high-contrast {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Global text color override for dark theme - more specific */
+.dark body,
+.dark main,
+.dark div,
+.dark p,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark span,
+.dark label,
+.dark button {
+  color: #ffffff !important;
+}
+
+/* Override any remaining black text in dark theme */
+.dark [class*="text-"] {
+  color: #ffffff !important;
+}
+
+/* Additional dark theme text overrides */
+.dark * {
+  color: #ffffff !important;
+}
+
+/* Specific overrides for common text elements in dark theme */
+.dark p,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark span,
+.dark div,
+.dark label,
+.dark button,
+.dark input,
+.dark textarea,
+.dark select {
+  color: #ffffff !important;
+}
+
+/* Force white text in dark theme for any remaining elements */
+.dark {
+  color: #ffffff !important;
+}
+
+/* Icon specific improvements */
+.icon-primary {
+  color: var(--icon-primary) !important;
+}
+
+.icon-secondary {
+  color: var(--icon-secondary) !important;
+}
+
+.icon-muted {
+  color: var(--icon-muted) !important;
+}
+
+.icon-success {
+  color: var(--icon-success) !important;
+}
+
+.icon-warning {
+  color: var(--icon-warning) !important;
+}
+
+.icon-error {
+  color: var(--icon-error) !important;
+}
+
+.icon-info {
+  color: var(--icon-info) !important;
+}
+
+/* Force white text for better readability */
+.text-white-force {
+  color: #ffffff !important;
+}
+
+/* Enhanced contrast for better readability */
+.text-high-contrast {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Icon with enhanced visibility */
+.icon-enhanced {
+  color: #ffffff !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* Print Styles */
+@media print {
+  * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+
+/* Wave Animation for WaveButton */
+@keyframes wave {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes wave-ripple {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+.wave-animation {
+  animation: wave 3s ease-in-out infinite;
+}
+
+.wave-ripple {
+  animation: wave-ripple 0.6s ease-out forwards;
+}
+
+.wave-optimized {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Enhanced WaveButton Glass Effect */
+.wave-button-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.wave-button-glass:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.wave-button-glass:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* Enhanced WaveButton Interaction Effects */
+.wave-button-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-hover:hover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.wave-button-hover:active {
+  transform: translateY(-2px) scale(0.95);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+}
+
+.wave-button-hover:focus {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Glass Button Enhanced Effects */
+.wave-button-glass-enhanced {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-glass-enhanced:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-6px) scale(1.08);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.wave-button-glass-enhanced:active {
+  transform: translateY(-2px) scale(0.92);
+  box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.4),
+    0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.wave-button-glass-enhanced:focus {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 
+    0 15px 30px rgba(0, 0, 0, 0.35),
+    0 0 15px rgba(255, 255, 255, 0.25);
+}
+
+/* Primary Button Enhanced Effects */
+.wave-button-primary-enhanced {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-primary-enhanced:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 
+    0 15px 35px rgba(59, 130, 246, 0.4),
+    0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.wave-button-primary-enhanced:active {
+  transform: translateY(-1px) scale(0.97);
+  box-shadow: 
+    0 8px 20px rgba(59, 130, 246, 0.5),
+    0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+.wave-button-primary-enhanced:focus {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 
+    0 12px 25px rgba(59, 130, 246, 0.45),
+    0 0 18px rgba(59, 130, 246, 0.35);
+}
+
+/* Secondary Button Enhanced Effects */
+.wave-button-secondary-enhanced {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-secondary-enhanced:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 
+    0 15px 35px rgba(168, 85, 247, 0.4),
+    0 0 20px rgba(168, 85, 247, 0.3);
+}
+
+.wave-button-secondary-enhanced:active {
+  transform: translateY(-1px) scale(0.97);
+  box-shadow: 
+    0 8px 20px rgba(168, 85, 247, 0.5),
+    0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+.wave-button-secondary-enhanced:focus {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 
+    0 12px 25px rgba(168, 85, 247, 0.45),
+    0 0 18px rgba(168, 85, 247, 0.35);
+}
+
+/* Success Button Enhanced Effects */
+.wave-button-success-enhanced {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-success-enhanced:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 
+    0 15px 35px rgba(16, 185, 129, 0.4),
+    0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.wave-button-success-enhanced:active {
+  transform: translateY(-1px) scale(0.97);
+  box-shadow: 
+    0 8px 20px rgba(16, 185, 129, 0.5),
+    0 0 15px rgba(16, 185, 129, 0.4);
+}
+
+.wave-button-success-enhanced:focus {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 
+    0 12px 25px rgba(16, 185, 129, 0.45),
+    0 0 18px rgba(16, 185, 129, 0.35);
+}
+
+/* Warning Button Enhanced Effects */
+.wave-button-warning-enhanced {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-warning-enhanced:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 
+    0 15px 35px rgba(245, 158, 11, 0.4),
+    0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+.wave-button-warning-enhanced:active {
+  transform: translateY(-1px) scale(0.97);
+  box-shadow: 
+    0 8px 20px rgba(245, 158, 11, 0.5),
+    0 0 15px rgba(245, 158, 11, 0.4);
+}
+
+.wave-button-warning-enhanced:focus {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 
+    0 12px 25px rgba(245, 158, 11, 0.45),
+    0 0 18px rgba(245, 158, 11, 0.35);
+}
+
+/* Error Button Enhanced Effects */
+.wave-button-error-enhanced {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-error-enhanced:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 
+    0 15px 35px rgba(239, 68, 68, 0.4),
+    0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.wave-button-error-enhanced:active {
+  transform: translateY(-1px) scale(0.97);
+  box-shadow: 
+    0 8px 20px rgba(239, 68, 68, 0.5),
+    0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.wave-button-error-enhanced:focus {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 
+    0 12px 25px rgba(239, 68, 68, 0.45),
+    0 0 18px rgba(239, 68, 68, 0.35);
+}
+
+/* Ghost Button Enhanced Effects */
+.wave-button-ghost-enhanced {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-button-ghost-enhanced:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 10px 25px rgba(255, 255, 255, 0.2),
+    0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.wave-button-ghost-enhanced:active {
+  transform: translateY(0px) scale(0.98);
+  box-shadow: 
+    0 5px 15px rgba(255, 255, 255, 0.3),
+    0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.wave-button-ghost-enhanced:focus {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 
+    0 8px 20px rgba(255, 255, 255, 0.25),
+    0 0 12px rgba(255, 255, 255, 0.15);
+}
