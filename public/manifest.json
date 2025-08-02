@@ -1,0 +1,44 @@
+{
+  "name": "구독관리 | Moonwave",
+  "short_name": "구독관리",
+  "description": "구독 서비스 관리 시스템 - Moonwave SMS V.2.0",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "ko",
+  "dir": "ltr",
+  "categories": ["productivity", "finance", "business"],
+  "icons": [
+    {
+      "src": "/moonwave.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/moonwave.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "구독 추가",
+      "short_name": "추가",
+      "description": "새로운 구독 서비스 추가",
+      "url": "/add",
+      "icons": [{ "src": "/moonwave.svg", "sizes": "96x96", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "구독 관리",
+      "short_name": "관리",
+      "description": "기존 구독 서비스 관리",
+      "url": "/dashboard",
+      "icons": [{ "src": "/moonwave.svg", "sizes": "96x96", "type": "image/svg+xml" }]
+    }
+  ]
+}
