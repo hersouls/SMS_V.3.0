@@ -1310,7 +1310,10 @@ function AppProvider({ children }: { children: ReactNode }) {
       calculateStats
     }}>
       <Suspense fallback={<LoadingSpinner />}>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Router 
+          basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <div className="min-h-screen bg-background text-foreground dark">
             {/* Moonwave Background */}
             <WaveBackground />
@@ -1459,7 +1462,10 @@ function App() {
   return (
     <AppProvider>
       <Suspense fallback={<LoadingSpinner />}>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Router 
+          basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <div className="min-h-screen bg-background text-foreground dark">
             {/* Moonwave Background */}
             <WaveBackground />
