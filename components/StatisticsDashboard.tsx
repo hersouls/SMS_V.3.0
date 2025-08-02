@@ -98,7 +98,7 @@ import {
   MonthlySpendingTrends
 } from '../utils/statistics';
 import {
-  loadMockDataFromDatabase,
+  loadMockDataFromLocalStorage,
   initializeMockData
 } from '../utils/mockData';
 

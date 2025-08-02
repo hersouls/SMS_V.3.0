@@ -1411,86 +1411,54 @@ export function generateAllMockData() {
 }
 
 // =====================================================
-// 모의 데이터 저장 함수 (Supabase 데이터베이스)
+// 모의 데이터 저장 함수 (로컬 스토리지)
 // =====================================================
 
-import { supabase } from './supabase/client';
-
-export async function saveMockDataToDatabase() {
+export function saveMockDataToLocalStorage() {
   const mockData = generateAllMockData();
   
-  try {
-    // Supabase 데이터베이스에 저장
-    for (const [key, data] of Object.entries(mockData)) {
-      const { error } = await supabase
-        .from('mock_data')
-        .upsert({
-          data_key: key,
-          data_value: data,
-          updated_at: new Date().toISOString()
-        });
-      
-      if (error) {
-        console.error(`모의 데이터 저장 오류 (${key}):`, error);
-      }
-    }
-    
-    console.log('모의 데이터가 Supabase 데이터베이스에 저장되었습니다.');
-    return mockData;
-  } catch (error) {
-    console.error('모의 데이터 저장 실패:', error);
-    throw error;
-  }
-}
-
-export async function loadMockDataFromDatabase() {
-  try {
-    const { data: mockDataRecords, error } = await supabase
-      .from('mock_data')
-      .select('data_key, data_value');
-    
-    if (error) {
-      console.error('모의 데이터 로드 오류:', error);
-      return {};
-    }
-    
-    const mockData: any = {};
-    mockDataRecords?.forEach(record => {
-      mockData[record.data_key] = record.data_value;
-    });
-    
-    return mockData;
-  } catch (error) {
-    console.error('모의 데이터 로드 실패:', error);
-    return {};
-  }
-}
-
-// 레거시 함수들 (하위 호환성을 위해 유지)
-export function saveMockDataToLocalStorage() {
-  console.warn('saveMockDataToLocalStorage는 더 이상 사용되지 않습니다. saveMockDataToDatabase를 사용하세요.');
-  return saveMockDataToDatabase();
+  // 로컬 스토리지에 저장
+  Object.entries(mockData).forEach(([key, data]) => {
+    localStorage.setItem(`mock_${key}`, JSON.stringify(data));
+  });
+  
+  console.log('모의 데이터가 로컬 스토리지에 저장되었습니다.');
+  return mockData;
 }
 
 export function loadMockDataFromLocalStorage() {
-  console.warn('loadMockDataFromLocalStorage는 더 이상 사용되지 않습니다. loadMockDataFromDatabase를 사용하세요.');
-  return loadMockDataFromDatabase();
+  const mockData: any = {};
+  
+  // 로컬 스토리지에서 로드
+  const keys = [
+    'subscriptions',
+    'subscriptionStatistics', 
+    'categoryAnalytics',
+    'paymentCycleAnalytics',
+    'tagAnalytics',
+    'monthlySpendingTrends',
+    'notificationAnalytics',
+    'userBehaviorAnalytics'
+  ];
+  
+  keys.forEach(key => {
+    const data = localStorage.getItem(`mock_${key}`);
+    if (data) {
+      mockData[key] = JSON.parse(data);
+    }
+  });
+  
+  return mockData;
 }
 
 // =====================================================
 // 모의 데이터 초기화
 // =====================================================
 
-export async function initializeMockData() {
-  try {
-    // Supabase 데이터베이스에 모의 데이터 저장
-    const mockData = await saveMockDataToDatabase();
-    
-    console.log('모의 데이터 초기화 완료');
-    console.log('생성된 데이터:', mockData);
-    return mockData;
-  } catch (error) {
-    console.error('모의 데이터 초기화 실패:', error);
-    throw error;
-  }
+export function initializeMockData() {
+  // 로컬 스토리지에 모의 데이터 저장
+  saveMockDataToLocalStorage();
+  
+  console.log('모의 데이터 초기화 완료');
+  console.log('생성된 데이터:', generateAllMockData());
 } 
