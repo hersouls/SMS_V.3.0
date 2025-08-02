@@ -749,11 +749,33 @@ export async function collectUserBehaviorAnalytics(
 /**
  * 통계 데이터를 Supabase에 저장
  */
+// Analytics tables availability cache
+const analyticsTablesCache = new Map<string, boolean>();
+
 export async function saveStatisticsData<T>(
   tableName: string,
   data: T
 ): Promise<boolean> {
   try {
+    // Check if table exists (with caching)
+    if (!analyticsTablesCache.has(tableName)) {
+      const { error: testError } = await supabase
+        .from(tableName)
+        .select('*')
+        .limit(1);
+      
+      if (testError && testError.code === '42P01') {
+        console.warn(`Analytics table '${tableName}' does not exist. Skipping analytics data save.`);
+        analyticsTablesCache.set(tableName, false);
+        return false;
+      }
+      analyticsTablesCache.set(tableName, true);
+    }
+    
+    if (!analyticsTablesCache.get(tableName)) {
+      return false;
+    }
+
     // 테이블별로 올바른 제약조건 사용
     let conflictColumns: string;
     
@@ -783,17 +805,24 @@ export async function saveStatisticsData<T>(
         conflictColumns = 'user_id,date';
     }
 
-    console.log(`${tableName} 저장 시도:`, { tableName, conflictColumns, data });
-    
-    // 간단한 insert 방식으로 데이터 저장 (충돌 시 무시)
+    // upsert 방식으로 데이터 저장 (충돌 시 업데이트)
     const { error } = await supabase
       .from(tableName)
-      .insert(data);
+      .upsert(data, {
+        onConflict: conflictColumns,
+        ignoreDuplicates: false
+      });
 
     if (error) {
-      // 충돌이 발생하면 무시하고 성공으로 처리
-      console.log(`${tableName} 데이터 충돌 무시:`, error);
-      return true;
+      if (error.code === '42P01') {
+        // Table doesn't exist
+        console.warn(`Analytics table '${tableName}' does not exist. Analytics features disabled.`);
+        analyticsTablesCache.set(tableName, false);
+        return false;
+      } else {
+        console.error(`${tableName} 데이터 저장 실패:`, error);
+        return false;
+      }
     }
 
     // 성공적으로 저장됨
@@ -944,6 +973,25 @@ export async function trackUserBehavior(
   try {
     // 기존 행동 데이터 조회
     const today = new Date().toISOString().split('T')[0];
+    // Check if analytics table exists
+    if (!analyticsTablesCache.get('user_behavior_analytics')) {
+      const { error: testError } = await supabase
+        .from('user_behavior_analytics')
+        .select('*')
+        .limit(1);
+      
+      if (testError && testError.code === '42P01') {
+        console.warn('User behavior analytics table does not exist. Skipping behavior tracking.');
+        analyticsTablesCache.set('user_behavior_analytics', false);
+        return;
+      }
+      analyticsTablesCache.set('user_behavior_analytics', true);
+    }
+
+    if (!analyticsTablesCache.get('user_behavior_analytics')) {
+      return;
+    }
+
     const { data: existingBehavior } = await supabase
       .from('user_behavior_analytics')
       .select('*')
@@ -1308,6 +1356,25 @@ export async function getCategoryStatistics(
   date: string = new Date().toISOString().split('T')[0]
 ): Promise<CategoryAnalytics[]> {
   try {
+    // Check if analytics table exists
+    if (!analyticsTablesCache.get('category_analytics')) {
+      const { error: testError } = await supabase
+        .from('category_analytics')
+        .select('*')
+        .limit(1);
+      
+      if (testError && testError.code === '42P01') {
+        console.warn('Category analytics table does not exist. Returning empty data.');
+        analyticsTablesCache.set('category_analytics', false);
+        return [];
+      }
+      analyticsTablesCache.set('category_analytics', true);
+    }
+
+    if (!analyticsTablesCache.get('category_analytics')) {
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('category_analytics')
       .select('*')
@@ -1316,6 +1383,11 @@ export async function getCategoryStatistics(
       .order('total_monthly_krw', { ascending: false });
 
     if (error) {
+      if (error.code === '42P01') {
+        console.warn('Category analytics table does not exist. Analytics features disabled.');
+        analyticsTablesCache.set('category_analytics', false);
+        return [];
+      }
       console.error('카테고리 통계 조회 실패:', error);
       return [];
     }
