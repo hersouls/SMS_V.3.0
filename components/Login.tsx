@@ -48,6 +48,11 @@ export function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" role="main" aria-label="로그인 페이지">
+      {/* Debug indicator */}
+      <div className="fixed top-20 left-4 z-50 bg-green-500 text-white px-2 py-1 rounded text-xs">
+        🔐 Login 컴포넌트 활성
+      </div>
+      
       <div className="w-full max-w-md slide-up">
         <GlassCard variant="strong" className="p-8" withWaveEffect={true}>
           {/* Header */}

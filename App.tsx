@@ -23,6 +23,10 @@ const DataLoadingDebugger = React.lazy(() => import('./components/DataLoadingDeb
 // Loading component
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-500 to-purple-600">
+    {/* Debug indicator */}
+    <div className="fixed top-20 left-4 z-50 bg-yellow-500 text-black px-2 py-1 rounded text-xs">
+      ⏳ LoadingSpinner 활성
+    </div>
     <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
   </div>
 );
@@ -30,6 +34,7 @@ const LoadingSpinner = () => (
 import { WaveBackground } from './components/WaveBackground';
 import { MusicPlayer } from './components/MusicPlayer';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import { DebugInfo } from './components/DebugInfo';
 import { supabase } from './utils/supabase/client';
 import { apiService } from './utils/api';
 import { getOAuthErrorMessage, checkOAuthStatus } from './utils/oauth';
@@ -1241,6 +1246,9 @@ function AppProvider({ children }: { children: ReactNode }) {
             {/* PWA Install Prompt */}
             <PWAInstallPrompt />
             
+            {/* Debug Info - Always show for debugging login issue */}
+            <DebugInfo />
+            
             {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
             <Toaster />
           </div>
@@ -1279,6 +1287,10 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     console.log('⏳ ProtectedRoute: 로딩 중, 로딩 화면 표시');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark">
+        {/* Debug indicator */}
+        <div className="fixed top-20 left-4 z-50 bg-blue-500 text-white px-2 py-1 rounded text-xs">
+          🛡️ ProtectedRoute 로딩중
+        </div>
         <div className="flex flex-col items-center space-y-token-md">
           <Waves 
             size={64}
@@ -1391,6 +1403,9 @@ function App() {
             
             {/* PWA Install Prompt */}
             <PWAInstallPrompt />
+            
+            {/* Debug Info - Always show for debugging login issue */}
+            <DebugInfo />
             
             {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
             <Toaster />
