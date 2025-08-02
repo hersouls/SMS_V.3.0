@@ -13,7 +13,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'X-Client-Info': 'sms-v2.0'
+      'X-Client-Info': 'sms-v2.0',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
     }
   }
 });

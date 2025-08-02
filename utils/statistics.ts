@@ -804,18 +804,14 @@ export async function collectUserBehaviorAnalytics(
 /**
  * 통계 데이터를 Supabase에 저장 (upsert 방식, 재시도 로직 포함)
  */
+// Analytics tables availability cache
+const analyticsTablesCache = new Map<string, boolean>();
+
 export async function saveStatisticsData<T>(
   tableName: string,
   data: T,
   retryCount: number = 0
 ): Promise<boolean> {
-  const maxRetries = 3;
-  const retryDelay = Math.pow(2, retryCount) * 1000; // 백오프 전략
-  
-  // 큐를 통해 동시 작업 방지
-  const queueKey = `save-${tableName}`;
-  
-    return queueOperation(queueKey, async () => {
     // 테이블별로 올바른 제약조건 사용
     let conflictColumns: string;
     
@@ -844,64 +840,6 @@ export async function saveStatisticsData<T>(
       default:
         conflictColumns = 'user_id,date';
     }
-
-    if (retryCount === 0) {
-      console.log(`${tableName} upsert 시도:`, { tableName, conflictColumns });
-    } else {
-      console.log(`${tableName} upsert 재시도 (${retryCount}/${maxRetries}):`, { tableName });
-    }
-    
-    try {
-      // upsert 방식으로 데이터 저장 (충돌 시 업데이트)
-      const { error } = await supabase
-        .from(tableName)
-        .upsert(data, {
-          onConflict: conflictColumns,
-          ignoreDuplicates: false
-        });
-
-      if (error) {
-        // 특정 오류들은 재시도하지 않음
-        const isRetryableError = 
-          error.message.includes('duplicate') || 
-          error.message.includes('conflict') ||
-          error.message.includes('timeout') ||
-          error.message.includes('network') ||
-          (error as any).status === 409 ||
-          (error as any).status === 503 ||
-          (error as any).status === 502;
-          
-        if (isRetryableError && retryCount < maxRetries) {
-          console.warn(`${tableName} 일시적 오류 감지, ${retryDelay}ms 후 재시도...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          return saveStatisticsData(tableName, data, retryCount + 1);
-        }
-        
-        if (retryCount >= maxRetries) {
-          console.warn(`${tableName} 최대 재시도 횟수 초과, 저장 포기`);
-        } else {
-          console.error(`${tableName} 데이터 저장 실패 (재시도 불가):`, error);
-        }
-        return false;
-      }
-
-      if (retryCount === 0) {
-        console.log(`${tableName} 데이터 저장 성공`);
-      } else {
-        console.log(`${tableName} 데이터 저장 성공 (재시도 ${retryCount}회 후)`);
-      }
-      return true;
-    } catch (error) {
-      console.error(`${tableName} 데이터 저장 중 예외:`, error);
-      
-      // 예외 발생 시에도 재시도 (네트워크 오류 등)
-      if (retryCount < maxRetries) {
-        console.warn(`${tableName} 예외 발생, ${retryDelay}ms 후 재시도...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return saveStatisticsData(tableName, data, retryCount + 1);
-      }
-      
-      return false;
     }
   });
 }
@@ -1065,6 +1003,25 @@ export async function trackUserBehavior(
   try {
     // 기존 행동 데이터 조회
     const today = new Date().toISOString().split('T')[0];
+    // Check if analytics table exists
+    if (!analyticsTablesCache.get('user_behavior_analytics')) {
+      const { error: testError } = await supabase
+        .from('user_behavior_analytics')
+        .select('*')
+        .limit(1);
+      
+      if (testError && testError.code === '42P01') {
+        console.warn('User behavior analytics table does not exist. Skipping behavior tracking.');
+        analyticsTablesCache.set('user_behavior_analytics', false);
+        return;
+      }
+      analyticsTablesCache.set('user_behavior_analytics', true);
+    }
+
+    if (!analyticsTablesCache.get('user_behavior_analytics')) {
+      return;
+    }
+
     const { data: existingBehavior } = await supabase
       .from('user_behavior_analytics')
       .select('*')
@@ -1433,6 +1390,25 @@ export async function getCategoryStatistics(
   date: string = new Date().toISOString().split('T')[0]
 ): Promise<CategoryAnalytics[]> {
   try {
+    // Check if analytics table exists
+    if (!analyticsTablesCache.get('category_analytics')) {
+      const { error: testError } = await supabase
+        .from('category_analytics')
+        .select('*')
+        .limit(1);
+      
+      if (testError && testError.code === '42P01') {
+        console.warn('Category analytics table does not exist. Returning empty data.');
+        analyticsTablesCache.set('category_analytics', false);
+        return [];
+      }
+      analyticsTablesCache.set('category_analytics', true);
+    }
+
+    if (!analyticsTablesCache.get('category_analytics')) {
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('category_analytics')
       .select('*')
@@ -1441,6 +1417,11 @@ export async function getCategoryStatistics(
       .order('total_monthly_krw', { ascending: false });
 
     if (error) {
+      if (error.code === '42P01') {
+        console.warn('Category analytics table does not exist. Analytics features disabled.');
+        analyticsTablesCache.set('category_analytics', false);
+        return [];
+      }
       console.error('카테고리 통계 조회 실패:', error);
       return [];
     }
