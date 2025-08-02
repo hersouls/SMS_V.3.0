@@ -19,6 +19,7 @@ const TermsOfService = React.lazy(() => import('./components/TermsOfService').th
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 const RLSDebugger = React.lazy(() => import('./components/RLSDebugger').then(module => ({ default: module.RLSDebugger })));
 const DataLoadingDebugger = React.lazy(() => import('./components/DataLoadingDebugger').then(module => ({ default: module.DataLoadingDebugger })));
+const SupabaseTestDashboard = React.lazy(() => import('./components/SupabaseTestDashboard').then(module => ({ default: module.SupabaseTestDashboard })));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -1380,6 +1381,7 @@ function App() {
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/rls-debug" element={<RLSDebugger />} />
                 <Route path="/data-debug" element={<ProtectedRoute><DataLoadingDebugger /></ProtectedRoute>} />
+                <Route path="/supabase-test" element={<SupabaseTestDashboard />} />
                 
                 {/* Handle preview_page.html and other unmatched routes */}
                 <Route path="/preview_page.html" element={<RedirectRoute />} />
@@ -1397,23 +1399,7 @@ function App() {
             
             {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
             
-            {/* Supabase 테스트 도구 (개발 모드에서만) */}
-            {import.meta.env.VITE_DEV_MODE === 'true' && (
-              <div className="fixed bottom-4 right-4 z-50">
-                <button
-                  onClick={() => {
-                    console.log('🚀 Supabase 연동 테스트 시작...');
-                    runAllSupabaseTests().then(results => {
-                      console.log('📋 테스트 완료:', results);
-                    });
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2"
-                  title="Supabase 연동 테스트 실행"
-                >
-                  🧪 Supabase 테스트
-                </button>
-              </div>
-            )}
+
             
             <Toaster />
           </div>
