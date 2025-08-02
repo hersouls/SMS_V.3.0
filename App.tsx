@@ -18,6 +18,7 @@ const AboutUs = React.lazy(() => import('./components/AboutUs').then(module => (
 const TermsOfService = React.lazy(() => import('./components/TermsOfService').then(module => ({ default: module.TermsOfService })));
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 const RLSDebugger = React.lazy(() => import('./components/RLSDebugger').then(module => ({ default: module.RLSDebugger })));
+const DataLoadingDebugger = React.lazy(() => import('./components/DataLoadingDebugger').then(module => ({ default: module.DataLoadingDebugger })));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -313,7 +314,11 @@ function AppProvider({ children }: { children: ReactNode }) {
             joinDate: new Date(session.user.created_at).toISOString().split('T')[0],
             name: session.user.user_metadata?.name
           });
+          
+          console.log('🔑 Initial auth - Setting access token:', session.access_token ? 'present' : 'missing');
           apiService.setAccessToken(session.access_token);
+          
+          console.log('🚀 Initial auth - Calling loadUserData...');
           await loadUserData();
         }
       } catch (error) {
@@ -427,7 +432,11 @@ function AppProvider({ children }: { children: ReactNode }) {
           joinDate: new Date(session.user.created_at).toISOString().split('T')[0],
           name: session.user.user_metadata?.name
         });
+        
+        console.log('🔑 Setting access token:', session.access_token ? 'present' : 'missing');
         apiService.setAccessToken(session.access_token);
+        
+        console.log('🚀 Calling loadUserData after auth state change...');
         await loadUserData();
       } else if (event === 'SIGNED_OUT') {
         // 사용자 행동 추적
@@ -467,21 +476,56 @@ function AppProvider({ children }: { children: ReactNode }) {
 
   const loadUserData = async () => {
     try {
+      console.log('🔄 loadUserData started');
+      
       // Load subscriptions
+      console.log('📊 Loading subscriptions...');
       const subscriptionsData = await apiService.getSubscriptions();
+      console.log('📊 Subscriptions loaded:', {
+        count: subscriptionsData.subscriptions?.length || 0,
+        data: subscriptionsData.subscriptions?.slice(0, 2) // Log first 2 items for debugging
+      });
       setSubscriptions(subscriptionsData.subscriptions || []);
 
       // Load settings
+      console.log('⚙️ Loading settings...');
       const settingsData = await apiService.getSettings();
+      console.log('⚙️ Settings loaded:', settingsData);
       if (settingsData.settings) {
         setSettings(prev => ({ ...prev, ...settingsData.settings }));
       }
 
       // 통계 데이터 업데이트
+      console.log('📈 Calculating stats...');
       const newStats = calculateStats();
+      console.log('📈 Stats calculated:', {
+        totalSubscriptions: newStats.totalSubscriptions,
+        activeCount: newStats.activeCount,
+        totalMonthly: newStats.totalMonthly
+      });
       setStats(newStats);
+      
+      console.log('✅ loadUserData completed successfully');
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('❌ Error loading user data:', error);
+      
+      // More detailed error logging
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      
+      // Try to identify the specific issue
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔍 Auth session check:', {
+          hasSession: !!session,
+          userId: session?.user?.id,
+          accessToken: session?.access_token ? 'present' : 'missing'
+        });
+      } catch (authError) {
+        console.error('🔍 Auth session check failed:', authError);
+      }
     }
   };
 
@@ -1269,6 +1313,7 @@ function App() {
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/rls-debug" element={<RLSDebugger />} />
+                <Route path="/data-debug" element={<ProtectedRoute><DataLoadingDebugger /></ProtectedRoute>} />
                 
                 {/* Handle preview_page.html and other unmatched routes */}
                 <Route path="/preview_page.html" element={<RedirectRoute />} />

@@ -30,10 +30,19 @@ import {
 } from 'lucide-react';
 import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
+import { QuickDataTest } from './QuickDataTest';
 
 
 export function Dashboard() {
   const { subscriptions, settings, refreshData } = useApp();
+  
+  // Debug logging
+  console.log('🏠 Dashboard render:', {
+    subscriptionsCount: subscriptions.length,
+    hasSubscriptions: subscriptions.length > 0,
+    settings,
+    firstSubscription: subscriptions[0]
+  });
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -899,6 +908,13 @@ export function Dashboard() {
           </GlassCard>
         </div>
       </main>
+
+      {/* Debug Component - Only show in development */}
+      {import.meta.env.DEV && (
+        <div className="container mx-auto px-token-md pb-token-lg">
+          <QuickDataTest />
+        </div>
+      )}
 
       {/* Enhanced Footer */}
       <Footer />
