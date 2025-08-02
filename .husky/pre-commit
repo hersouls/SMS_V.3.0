@@ -1,0 +1,31 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 보안 검사 중..."
+
+# 민감한 정보 패턴 검사
+PATTERNS=(
+  "VITE_SUPABASE_ANON_KEY=eyJ"
+  "VITE_GOOGLE_CLIENT_ID=[0-9]"
+  "supabase\.co.*\.supabase\.co"
+  "sk-[a-zA-Z0-9]"
+  "pk_[a-zA-Z0-9]"
+)
+
+for pattern in "${PATTERNS[@]}"; do
+  if git diff --cached --name-only | xargs grep -l "$pattern" 2>/dev/null; then
+    echo "❌ 보안 오류: 민감한 정보가 커밋에 포함되어 있습니다!"
+    echo "패턴: $pattern"
+    echo "커밋을 중단합니다. 민감한 정보를 제거하고 다시 시도하세요."
+    exit 1
+  fi
+done
+
+# .env 파일 검사
+if git diff --cached --name-only | grep -E "\.env(\.|$)" | grep -v "\.env\.example$"; then
+  echo "❌ 보안 오류: .env 파일이 커밋에 포함되어 있습니다!"
+  echo "환경 변수 파일은 Git에 커밋하면 안됩니다."
+  exit 1
+fi
+
+echo "✅ 보안 검사 통과"

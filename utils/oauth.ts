@@ -40,11 +40,11 @@ export const getGoogleOAuthConfig = (): OAuthConfig => {
     redirectUri = `${currentDomain}/dashboard`;
   } else {
     // 프로덕션에서는 Supabase Auth 콜백 사용
-    redirectUri = 'https://bfurhjgnnjgfcafdrotk.supabase.co/auth/v1/callback';
+    redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`;
   }
   
   const config: OAuthConfig = {
-    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '350164367455-h4c615pr0eqoaj218bi6stlvpiqab45k.apps.googleusercontent.com',
+    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
     redirectUri,
     scope: 'email profile',
     responseType: 'code'

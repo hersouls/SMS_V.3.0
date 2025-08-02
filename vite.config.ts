@@ -21,7 +21,7 @@ export default defineConfig({
     proxy: {
       // Supabase Edge Functions 프록시 설정
       '/functions/v1': {
-        target: 'https://bfurhjgnnjgfcafdrotk.supabase.co',
+        target: process.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co',
         changeOrigin: true,
         secure: true,
         headers: {

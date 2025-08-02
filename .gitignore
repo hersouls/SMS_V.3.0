@@ -23,12 +23,25 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables
+# Environment variables - NEVER commit these files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.backup
+.env.*
+
+# Security sensitive files
+*/info.tsx
+utils/supabase/info.tsx
+**/supabase/info.tsx
+
+# API keys and secrets
+*.key
+*.pem
+*.p12
+*.pfx
 
 # Build outputs
 build/

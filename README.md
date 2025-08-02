@@ -37,11 +37,11 @@ npm install
 
 ```env
 # Supabase Configuration
-VITE_SUPABASE_URL=https://bfurhjgnnjgfcafdrotk.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdXJoamdubmpnZmNhZmRyb3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2MDQ4NTIsImV4cCI6MjA2OTE4MDg1Mn0.mxP7V92XRdY8e_7r9GR3B04blukhVf1vu_teRguv20U
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Google OAuth
-VITE_GOOGLE_CLIENT_ID=350164367455-h4c615pr0eqoaj218bi6stlvpiqab45k.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
 
 # Application Configuration
 VITE_APP_URL=https://sub.moonwave.kr
@@ -76,8 +76,8 @@ npm run dev
 ## 🔧 Supabase 설정
 
 ### 1. Supabase 프로젝트 설정
-- 프로젝트 ID: `bfurhjgnnjgfcafdrotk`
-- URL: `https://bfurhjgnnjgfcafdrotk.supabase.co`
+- 프로젝트 ID: `your_project_id`
+- URL: `https://your_project_id.supabase.co`
 
 ### 2. CORS 설정
 Supabase Edge Functions에서 다음 도메인들이 허용됩니다:
@@ -117,7 +117,7 @@ Google 로그인 기능을 사용하려면 다음 설정이 필요합니다:
    http://localhost:3000/dashboard
    http://localhost:5173/dashboard
    https://sub.moonwave.kr/dashboard
-   https://bfurhjgnnjgfcafdrotk.supabase.co/auth/v1/callback
+   https://your_project_id.supabase.co/auth/v1/callback
    ```
 
 2. **Supabase Dashboard**에서 Site URL과 Redirect URLs 설정
@@ -175,6 +175,22 @@ netlify deploy --prod --dir=dist
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## 🔐 보안
+
+이 프로젝트의 보안 가이드라인은 [SECURITY.md](SECURITY.md)를 참조하세요.
+
+### 중요 보안 사항
+- **API 키를 절대 코드에 하드코딩하지 마세요**
+- **환경 변수 파일(.env)을 Git에 커밋하지 마세요**
+- **데이터베이스 보안 수정사항을 반드시 적용하세요**: [적용 가이드](supabase/APPLY_SECURITY_FIXES.md)
+
+### 환경 변수 설정
+실제 환경에서는 다음과 같이 설정하세요:
+1. 새로운 Supabase 프로젝트 생성 후 키 발급
+2. Google OAuth 클라이언트 ID 새로 생성
+3. 환경 변수에 실제 값 설정
+4. GitHub Secrets를 통한 배포 설정
 
 ## 📄 라이선스
 

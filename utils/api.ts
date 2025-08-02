@@ -2,7 +2,11 @@
 import { supabase } from './supabase/client';
 
 // 환경 변수에서 Supabase URL 가져오기 (레거시 지원용)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bfurhjgnnjgfcafdrotk.supabase.co';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+if (!supabaseUrl) {
+  throw new Error('VITE_SUPABASE_URL 환경 변수가 설정되지 않았습니다.');
+}
 const BASE_URL = `${supabaseUrl}/functions/v1/make-server-7a0e61a7`;
 
 export class ApiService {
