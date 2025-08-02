@@ -27,6 +27,12 @@ export function MusicPlayer({ className }: MusicPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // 전체 트랙 목록
+  // 참고: /public/music/ 디렉토리에 실제 MP3 파일들을 추가해야 합니다.
+  // 파일명은 아래와 같아야 합니다:
+  // - 1. Wabie Sync Part1.mp3
+  // - 2. Wabie Sync Part2.mp3
+  // - 3. Wavecoded Part2.mp3
+  // 등등...
   const tracks: Track[] = [
     {
       id: '1',
@@ -120,6 +126,28 @@ export function MusicPlayer({ className }: MusicPlayerProps) {
 
   const currentTrack = tracks[currentTrackIndex];
 
+  // 오디오 파일 존재 여부 확인
+  const [fileExists, setFileExists] = useState<boolean>(true);
+
+  // 파일 존재 여부 체크
+  useEffect(() => {
+    const checkFileExists = async () => {
+      try {
+        const response = await fetch(currentTrack.audioUrl, { method: 'HEAD' });
+        setFileExists(response.ok);
+        if (!response.ok) {
+          setAudioError(`음악 파일을 찾을 수 없습니다: ${currentTrack.title}`);
+        }
+      } catch (error) {
+        console.log('파일 존재 여부 확인 실패:', error);
+        setFileExists(false);
+        setAudioError(`음악 파일이 존재하지 않습니다: ${currentTrack.title}`);
+      }
+    };
+
+    checkFileExists();
+  }, [currentTrackIndex, currentTrack.audioUrl, currentTrack.title]);
+
   // 오디오 로드 및 자동재생
   useEffect(() => {
     const audio = audioRef.current;
@@ -150,8 +178,9 @@ export function MusicPlayer({ className }: MusicPlayerProps) {
 
     const handleError = (error: any) => {
       console.log('오디오 로드 에러:', error);
-      setAudioError('오디오 파일을 로드할 수 없습니다.');
-      // 에러가 있어도 재생 버튼은 활성화
+      setAudioError('음악 파일이 준비 중입니다. 곧 업데이트될 예정입니다.');
+      setIsPlaying(false);
+      // 에러가 있어도 재생 버튼은 활성화하지만 실제로는 작동하지 않음
     };
 
     const handlePlay = () => {
@@ -202,6 +231,12 @@ export function MusicPlayer({ className }: MusicPlayerProps) {
       return;
     }
 
+    // 파일이 존재하지 않는 경우
+    if (!fileExists) {
+      setAudioError('음악 파일이 아직 업로드되지 않았습니다. 개발 중입니다.');
+      return;
+    }
+
     console.log('재생/일시정지 버튼 클릭');
 
     try {
@@ -217,7 +252,7 @@ export function MusicPlayer({ className }: MusicPlayerProps) {
     } catch (error) {
       console.log('재생 실패:', error);
       setIsPlaying(false);
-      setAudioError('재생에 실패했습니다. 브라우저 설정을 확인해주세요.');
+      setAudioError('음악 파일이 준비되지 않았습니다. 개발자가 곧 업데이트할 예정입니다.');
     }
   };
 
