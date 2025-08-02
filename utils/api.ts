@@ -60,12 +60,22 @@ export class ApiService {
   // Subscription methods - Supabase 직접 사용
   async getSubscriptions() {
     try {
+      console.log('🔍 API Service - getSubscriptions called');
+      console.log('🔑 Access token:', this.accessToken ? 'present' : 'missing');
+      
       const { data: subscriptions, error } = await supabase
         .from('subscriptions')
         .select('*')
         .order('created_at', { ascending: false });
 
+      console.log('📊 Supabase query result:', {
+        error: error?.message,
+        dataCount: subscriptions?.length || 0,
+        hasData: !!subscriptions
+      });
+
       if (error) {
+        console.error('❌ Supabase error:', error);
         throw new Error(error.message);
       }
 
