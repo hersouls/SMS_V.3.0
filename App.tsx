@@ -468,7 +468,7 @@ function AppProvider({ children }: { children: ReactNode }) {
 
   // 구독 데이터나 설정이 변경될 때마다 통계 업데이트
   useEffect(() => {
-    if (subscriptions.length > 0 || settings.exchangeRate) {
+    if ((subscriptions && subscriptions.length > 0) || settings.exchangeRate) {
       const newStats = calculateStats();
       setStats(newStats);
     }
@@ -795,6 +795,35 @@ function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const calculateStats = (): SubscriptionStats => {
+    // Safety check to ensure subscriptions is always an array
+    if (!subscriptions || !Array.isArray(subscriptions)) {
+      return {
+        totalMonthly: 0,
+        monthlyTotal: 0,
+        totalYearly: 0,
+        yearlyTotal: 0,
+        yearlySpendingToDate: 0,
+        activeCount: 0,
+        pausedCount: 0,
+        cancelledCount: 0,
+        totalSubscriptions: 0,
+        upcomingPayments: 0,
+        todayCount: 0,
+        todayTotal: 0,
+        weekCount: 0,
+        weeklyTotal: 0,
+        prevMonthTotal: 0,
+        categoryBreakdown: {},
+        tierBreakdown: {},
+        tagStats: {},
+        paymentDayBreakdown: {},
+        startDateBreakdown: {},
+        notificationStats: { enabled: 0, disabled: 0, percentage: 0 },
+        monthlyTrend: 0,
+        yearlyTrend: 0
+      };
+    }
+
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -1007,13 +1036,15 @@ function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // 태그별 통계
-      sub.tags.forEach(tag => {
-        if (!tagStats[tag]) {
-          tagStats[tag] = { count: 0, totalAmount: 0 };
-        }
-        tagStats[tag].count++;
-        tagStats[tag].totalAmount += amount;
-      });
+      if (sub.tags && Array.isArray(sub.tags)) {
+        sub.tags.forEach(tag => {
+          if (!tagStats[tag]) {
+            tagStats[tag] = { count: 0, totalAmount: 0 };
+          }
+          tagStats[tag].count++;
+          tagStats[tag].totalAmount += amount;
+        });
+      }
 
       // 구독 시작일별 통계 (최근 12개월)
       const startDate = new Date(sub.startDate);
@@ -1146,7 +1177,7 @@ function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       user,
-      subscriptions,
+      subscriptions: subscriptions || [],
       settings,
       isAuthenticated: !!user,
       isLoading,
