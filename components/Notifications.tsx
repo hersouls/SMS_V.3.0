@@ -147,7 +147,7 @@ export function Notifications() {
             const daysUntilPayment = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             
             // 7일 전 알림
-            if (daysUntilPayment === 7 && sub.notifications.sevenDays) {
+            if (daysUntilPayment === 7 && sub.notifications?.sevenDays) {
               new Notification(`${sub.serviceName} 결제 예정`, {
                 body: `7일 후 ${sub.serviceName} 결제가 예정되어 있습니다. (${formatCurrency(sub.amount, sub.currency)})`,
                 icon: '/favicon.ico',
@@ -157,7 +157,7 @@ export function Notifications() {
             }
             
             // 3일 전 알림
-            if (daysUntilPayment === 3 && sub.notifications.threeDays) {
+            if (daysUntilPayment === 3 && sub.notifications?.threeDays) {
               new Notification(`${sub.serviceName} 결제 예정`, {
                 body: `3일 후 ${sub.serviceName} 결제가 예정되어 있습니다. (${formatCurrency(sub.amount, sub.currency)})`,
                 icon: '/favicon.ico',
@@ -167,7 +167,7 @@ export function Notifications() {
             }
             
             // 당일 알림
-            if (daysUntilPayment === 0 && sub.notifications.sameDay) {
+            if (daysUntilPayment === 0 && sub.notifications?.sameDay) {
               new Notification(`${sub.serviceName} 결제일`, {
                 body: `오늘 ${sub.serviceName} 결제일입니다. (${formatCurrency(sub.amount, sub.currency)})`,
                 icon: '/favicon.ico',
@@ -186,7 +186,7 @@ export function Notifications() {
           const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
 
           // 7-day reminder
-          if (daysUntilPayment <= 7 && daysUntilPayment > 3 && sub.notifications.sevenDays) {
+          if (daysUntilPayment <= 7 && daysUntilPayment > 3 && sub.notifications?.sevenDays) {
             generatedNotifications.push({
               id: `${sub.id}-7days-${paymentDate.getTime()}`,
               type: 'payment',
@@ -207,7 +207,7 @@ export function Notifications() {
           }
           
           // 3-day reminder
-          if (daysUntilPayment <= 3 && daysUntilPayment > 0 && sub.notifications.threeDays) {
+          if (daysUntilPayment <= 3 && daysUntilPayment > 0 && sub.notifications?.threeDays) {
             generatedNotifications.push({
               id: `${sub.id}-3days-${paymentDate.getTime()}`,
               type: 'payment',
