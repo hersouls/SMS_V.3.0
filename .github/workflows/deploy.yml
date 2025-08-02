@@ -37,12 +37,12 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-          VITE_APP_URL: https://${{ github.repository_owner }}.github.io/SMS_V.3.0
+          VITE_APP_URL: https://sub.moonwave.kr
           VITE_APP_NAME: "SMS V.2.0"
           VITE_APP_VERSION: "2.0.0"
           VITE_DEV_MODE: false
           VITE_ENABLE_DEBUG: false
-          VITE_ALLOWED_ORIGINS: https://${{ github.repository_owner }}.github.io
+          VITE_ALLOWED_ORIGINS: https://sub.moonwave.kr,https://www.sub.moonwave.kr
           
       - name: Setup Pages
         uses: actions/configure-pages@v4

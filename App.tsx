@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, Suspense } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Waves } from 'lucide-react';
 import { Toaster } from 'sonner';
 

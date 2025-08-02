@@ -70,8 +70,8 @@ npm run dev
 - `http://localhost:5173`
 
 ### 프로덕션 도메인
-- `https://sub.moonwave.kr`
-- `https://www.sub.moonwave.kr`
+- `https://sub.moonwave.kr` (메인 도메인)
+- `https://www.sub.moonwave.kr` (www 서브도메인)
 
 ## 🔧 Supabase 설정
 
