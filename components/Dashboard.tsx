@@ -52,6 +52,11 @@ export function Dashboard() {
 
   // 중복 제거 함수
   const getUniqueSubscriptions = () => {
+    // Safety check for subscriptions array
+    if (!subscriptions || !Array.isArray(subscriptions)) {
+      return [];
+    }
+    
     const seen = new Set();
     const uniqueSubs = subscriptions.filter(sub => {
       // id와 serviceName을 조합한 고유 키 생성

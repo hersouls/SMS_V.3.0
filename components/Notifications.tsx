@@ -136,8 +136,9 @@ export function Notifications() {
       const generatedNotifications: Notification[] = [];
 
       // Generate payment notifications for each active subscription
-      subscriptions.forEach((sub) => {
-        if (sub.status === 'active') {
+      if (subscriptions && Array.isArray(subscriptions)) {
+        subscriptions.forEach((sub) => {
+          if (sub.status === 'active') {
           const currentMonth = now.getMonth();
           const currentYear = now.getFullYear();
           let paymentDate = new Date(currentYear, currentMonth, sub.paymentDay);
@@ -249,6 +250,7 @@ export function Notifications() {
           }
         }
       });
+      }
 
       // Enhanced system notifications
       generatedNotifications.push(
@@ -265,7 +267,7 @@ export function Notifications() {
           id: 'system-monthly-report',
           type: 'system',
           title: '월간 리포트 준비 완료',
-          message: `이번 달 구독 사용 리포트가 준비되었습니다. 총 ${subscriptions.filter(s => s.status === 'active').length}개의 활성 구독으로 ${subscriptions.reduce((total, sub) => {
+          message: `이번 달 구독 사용 리포트가 준비되었습니다. 총 ${(subscriptions || []).filter(s => s.status === 'active').length}개의 활성 구독으로 ${(subscriptions || []).reduce((total, sub) => {
             const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
             const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
             return total + (sub.status === 'active' ? monthlyAmount : 0);

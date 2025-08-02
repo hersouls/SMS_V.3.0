@@ -116,9 +116,11 @@ export function AllSubscriptions() {
 
     // Get unique categories with counts
     const categoryMap = new Map();
-    subscriptions.forEach(sub => {
-      categoryMap.set(sub.category, (categoryMap.get(sub.category) || 0) + 1);
-    });
+    if (subscriptions && Array.isArray(subscriptions)) {
+      subscriptions.forEach(sub => {
+        categoryMap.set(sub.category, (categoryMap.get(sub.category) || 0) + 1);
+      });
+    }
     const uniqueCategories = ['all', ...Array.from(categoryMap.keys()).sort()];
 
     // Calculate total monthly spending

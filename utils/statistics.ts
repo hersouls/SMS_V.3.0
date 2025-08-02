@@ -491,11 +491,13 @@ export async function collectTagAnalytics(
 
     // 모든 태그 수집
     const allTags = new Set<string>();
-    subscriptions.forEach(sub => {
-      if (sub.tags) {
-        sub.tags.forEach((tag: string) => allTags.add(tag));
-      }
-    });
+    if (subscriptions && Array.isArray(subscriptions)) {
+      subscriptions.forEach(sub => {
+        if (sub.tags && Array.isArray(sub.tags)) {
+          sub.tags.forEach((tag: string) => allTags.add(tag));
+        }
+      });
+    }
 
     const analytics: TagAnalytics[] = [];
 
