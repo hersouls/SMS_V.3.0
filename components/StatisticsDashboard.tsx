@@ -64,6 +64,8 @@ import {
   Cloud,
   Sun,
   Moon,
+  Database,
+  TestTube,
   Star as StarIcon,
   Heart as HeartIcon,
   Zap as ZapIcon,
