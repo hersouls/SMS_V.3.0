@@ -17,6 +17,7 @@ const PaymentCalendar = React.lazy(() => import('./components/PaymentCalendar').
 const AboutUs = React.lazy(() => import('./components/AboutUs').then(module => ({ default: module.AboutUs })));
 const TermsOfService = React.lazy(() => import('./components/TermsOfService').then(module => ({ default: module.TermsOfService })));
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
+const RLSDebugger = React.lazy(() => import('./components/RLSDebugger').then(module => ({ default: module.RLSDebugger })));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -1267,6 +1268,7 @@ function App() {
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/rls-debug" element={<RLSDebugger />} />
                 
                 {/* Handle preview_page.html and other unmatched routes */}
                 <Route path="/preview_page.html" element={<RedirectRoute />} />
