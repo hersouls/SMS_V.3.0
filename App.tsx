@@ -19,7 +19,7 @@ const TermsOfService = React.lazy(() => import('./components/TermsOfService').th
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 const RLSDebugger = React.lazy(() => import('./components/RLSDebugger').then(module => ({ default: module.RLSDebugger })));
 const DataLoadingDebugger = React.lazy(() => import('./components/DataLoadingDebugger').then(module => ({ default: module.DataLoadingDebugger })));
-const AuthCallback = React.lazy(() => import('./components/AuthCallback').then(module => ({ default: module.AuthCallback })));
+
 
 // Loading component
 const LoadingSpinner = () => (
@@ -40,6 +40,9 @@ import {
   collectAndSaveAllStatistics,
 
 } from './utils/statistics';
+
+// Supabase 테스트 도구 (개발 모드에서만)
+import { runAllSupabaseTests } from './utils/supabase-manual-test';
 
 // Types
 export interface Subscription {
@@ -1481,6 +1484,7 @@ function App() {
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/rls-debug" element={<RLSDebugger />} />
                 <Route path="/data-debug" element={<ProtectedRoute><DataLoadingDebugger /></ProtectedRoute>} />
+                <Route path="/supabase-test" element={<SupabaseTestDashboard />} />
                 
                 {/* Handle preview_page.html and other unmatched routes */}
                 <Route path="/preview_page.html" element={<RedirectRoute />} />
@@ -1497,6 +1501,9 @@ function App() {
             <PWAInstallPrompt />
             
             {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
+            
+
+            
             <Toaster />
           </div>
         </Router>
