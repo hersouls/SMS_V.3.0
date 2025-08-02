@@ -198,4 +198,4 @@ netlify deploy --prod --dir=dist
 
 ## 📞 문의
 
-프로젝트에 대한 문의사항이 있으시면 이슈를 생성해 주세요. 
+프로젝트에 대한 문의사항이 있으시면 이슈를 생성해 주세요. # Updated on Sat Aug  2 11:00:44 AM UTC 2025
