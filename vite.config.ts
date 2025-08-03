@@ -98,8 +98,6 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
-  // 개발 환경에서는 base를 '/'로 설정
-  if (command === 'serve') {
     config.base = '/'
   }
 
