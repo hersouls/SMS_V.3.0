@@ -206,7 +206,6 @@ export default {
     require("@tailwindcss/forms"),
     require("@tailwindcss/typography"),
     require("@tailwindcss/aspect-ratio"),
-    require("@tailwindcss/line-clamp"),
     // Tailwind CSS Plus - Custom Plugin for Korean Typography
     function({ addUtilities, theme }) {
       const newUtilities = {
