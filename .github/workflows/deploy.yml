@@ -32,8 +32,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Build
-        run: npm run build
+      - name: Clean previous build
+        run: npm run clean
+        
+      - name: Build for production
+        run: npm run build:prod
         env:
           NODE_ENV: production
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -53,6 +56,16 @@ jobs:
           VITE_DEV_MODE: false
           VITE_ENABLE_DEBUG: false
           VITE_ALLOWED_ORIGINS: https://sub.moonwave.kr,https://www.sub.moonwave.kr
+          
+      - name: Verify build output
+        run: |
+          echo "Checking build output..."
+          ls -la dist/
+          echo "Checking for hashed files..."
+          ls -la dist/assets/ || echo "No assets directory found"
+          
+      - name: Run build verification
+        run: npm run verify
           
       - name: Setup Pages
         uses: actions/configure-pages@v4
