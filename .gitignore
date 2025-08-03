@@ -37,7 +37,7 @@ utils/supabase/info.tsx
 *.p12
 *.pfx
 
-# 📁 Coverage & Test reports
+# 📁 Coverage reports
 coverage/
 .nyc_output/
 *.lcov
