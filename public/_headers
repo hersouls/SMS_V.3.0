@@ -1,0 +1,18 @@
+# Cache control for static assets
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Cache control for HTML files
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Cache control for service worker
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Security headers
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
