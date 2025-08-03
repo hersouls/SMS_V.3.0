@@ -1,16 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  runAllSupabaseTests, 
-  testEnvironmentConfig, 
-  testSupabaseConnection, 
-  testAuthenticationStatus, 
-  testDatabaseSchema, 
-  testBasicCRUD, 
-  testRealtimeFeatures, 
-  testStorageFeatures,
-  runAuthTests,
-  runDatabaseTests
-} from '../utils/supabase-manual-test';
 
 interface TestResult {
   testName: string;
@@ -70,18 +58,9 @@ export const SupabaseTestDashboard: React.FC = () => {
     addLog('🚀 전체 Supabase 테스트 시작', 'info');
     
     try {
-      const results = await runAllSupabaseTests();
-      setTestResults(results);
-      
-      const successCount = results.filter(r => r.success).length;
-      const totalCount = results.length;
-      const successRate = totalCount > 0 ? ((successCount / totalCount) * 100).toFixed(1) : '0';
-      
-      addLog(`📋 테스트 완료: 성공 ${successCount}개, 실패 ${totalCount - successCount}개, 성공률 ${successRate}%`, 'success');
-      
-      // 연결 상태 업데이트
-      const hasConnection = results.some(r => r.testName.includes('데이터베이스 연결') && r.success);
-      setConnectionStatus(hasConnection ? 'connected' : 'disconnected');
+      // TODO: supabase-manual-test 파일이 없어서 임시로 주석 처리
+      addLog('테스트 함수들이 아직 구현되지 않았습니다.', 'info');
+      setTestResults([]);
       
     } catch (error) {
       addLog('전체 테스트 실행 중 오류 발생', 'error');
@@ -92,35 +71,31 @@ export const SupabaseTestDashboard: React.FC = () => {
   };
 
   const handleEnvironmentTest = async () => {
-    await runTest('환경 설정 테스트', () => {
-      const result = testEnvironmentConfig();
-      return Promise.resolve(result);
-    });
+    addLog('환경 설정 테스트: 아직 구현되지 않음', 'info');
   };
 
   const handleConnectionTest = async () => {
-    const result = await runTest('연결 테스트', testSupabaseConnection);
-    setConnectionStatus(result ? 'connected' : 'disconnected');
+    addLog('연결 테스트: 아직 구현되지 않음', 'info');
   };
 
   const handleAuthTest = async () => {
-    await runTest('인증 테스트', testAuthenticationStatus);
+    addLog('인증 테스트: 아직 구현되지 않음', 'info');
   };
 
   const handleDatabaseTest = async () => {
-    await runTest('데이터베이스 스키마 테스트', testDatabaseSchema);
+    addLog('데이터베이스 스키마 테스트: 아직 구현되지 않음', 'info');
   };
 
   const handleCRUDTest = async () => {
-    await runTest('CRUD 테스트', testBasicCRUD);
+    addLog('CRUD 테스트: 아직 구현되지 않음', 'info');
   };
 
   const handleRealtimeTest = async () => {
-    await runTest('Real-time 테스트', testRealtimeFeatures);
+    addLog('Real-time 테스트: 아직 구현되지 않음', 'info');
   };
 
   const handleStorageTest = async () => {
-    await runTest('스토리지 테스트', testStorageFeatures);
+    addLog('스토리지 테스트: 아직 구현되지 않음', 'info');
   };
 
   const handleAuthOnlyTests = async () => {
@@ -128,9 +103,8 @@ export const SupabaseTestDashboard: React.FC = () => {
     addLog('🔐 인증 관련 테스트만 실행', 'info');
     
     try {
-      const results = await runAuthTests();
-      setTestResults(results);
-      addLog(`인증 테스트 완료: ${results.length}개 항목`, 'success');
+      addLog('인증 테스트: 아직 구현되지 않음', 'info');
+      setTestResults([]);
     } catch (error) {
       addLog('인증 테스트 실행 중 오류 발생', 'error');
     } finally {
@@ -143,9 +117,8 @@ export const SupabaseTestDashboard: React.FC = () => {
     addLog('📊 데이터베이스 관련 테스트만 실행', 'info');
     
     try {
-      const results = await runDatabaseTests();
-      setTestResults(results);
-      addLog(`데이터베이스 테스트 완료: ${results.length}개 항목`, 'success');
+      addLog('데이터베이스 테스트: 아직 구현되지 않음', 'info');
+      setTestResults([]);
     } catch (error) {
       addLog('데이터베이스 테스트 실행 중 오류 발생', 'error');
     } finally {
