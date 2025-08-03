@@ -3,12 +3,10 @@ const CACHE_NAME = 'sms-v3-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/Moonwave_2.png',
-  '/moonwave.svg'
+  '/assets/',
 ];
 
-// Install event
+// Install event - cache resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -16,31 +14,21 @@ self.addEventListener('install', (event) => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
-      .catch((error) => {
-        console.log('Cache installation failed:', error);
-      })
   );
 });
 
-// Fetch event
+// Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
-        return response || fetch(event.request).catch((error) => {
-          console.log('Fetch failed:', error);
-          // Return a fallback response for failed requests
-          if (event.request.destination === 'image') {
-            return caches.match('/Moonwave_2.png');
-          }
-          return new Response('Network error', { status: 503 });
-        });
+        return response || fetch(event.request);
       })
   );
 });
 
-// Activate event
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {

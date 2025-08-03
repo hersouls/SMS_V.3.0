@@ -9,7 +9,8 @@ export default defineConfig(({ command, mode }) => {
   
   const config = {
     plugins: [react()],
-    base: '/',
+    // GitHub Pages에서 상대 경로로 동작하도록 설정
+    base: './',
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -45,15 +46,38 @@ export default defineConfig(({ command, mode }) => {
       // 개발 환경에서는 소스맵 활성화, 프로덕션에서는 조건부 활성화
       sourcemap: isDevelopment ? true : (process.env.GENERATE_SOURCEMAP === 'true'),
       minify: 'esbuild',
+      // 캐시 방지를 위한 파일명 해시 설정
       rollupOptions: {
         output: {
+          // 파일명에 해시 포함 (main.abcd123.js 형식)
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js',
+          assetFileNames: (assetInfo) => {
+            const info = assetInfo.name.split('.')
+            const ext = info[info.length - 1]
+            if (/\.(css)$/.test(assetInfo.name)) {
+              return `assets/[name].[hash].${ext}`
+            }
+            if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico|webp)$/i.test(assetInfo.name)) {
+              return `assets/images/[name].[hash].${ext}`
+            }
+            if (/\.(woff2?|eot|ttf|otf)$/i.test(assetInfo.name)) {
+              return `assets/fonts/[name].[hash].${ext}`
+            }
+            return `assets/[name].[hash].${ext}`
+          },
           manualChunks: {
             vendor: ['react', 'react-dom'],
             router: ['react-router-dom'],
             ui: ['lucide-react', '@supabase/supabase-js']
           }
         }
-      }
+      },
+      // 캐시 방지를 위한 추가 설정
+      target: 'es2015',
+      cssCodeSplit: true,
+      reportCompressedSize: false,
+      chunkSizeWarningLimit: 1000
     },
     define: {
       // 환경 변수 타입 정의 - 실제 환경 변수 사용
@@ -74,9 +98,8 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
-  // Custom domain deployment (sub.moonwave.kr)
-  // GitHub Pages with custom domain doesn't need base path
-  if (command !== 'serve') {
+  // 개발 환경에서는 base를 '/'로 설정
+  if (command === 'serve') {
     config.base = '/'
   }
 
