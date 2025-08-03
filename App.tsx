@@ -63,6 +63,7 @@ import {
 // Supabase 테스트 도구 (개발 모드에서만) - 사용되지 않으므로 주석 처리
 // Firebase auth and data hooks
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
+import { useAuth } from './contexts/AuthContext';
 
 // Types
 export interface Subscription {
@@ -404,9 +405,20 @@ function AppProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  // Firebase Auth 상태를 가져오기 위해 useAuth 훅 사용
+  const { isAuthenticated: firebaseIsAuthenticated, loading: firebaseLoading } = useAuth();
+
   // Initialize authentication state
   useEffect(() => {
     console.log('🔄 App: initializeAuth useEffect 시작');
+    console.log('🔍 Firebase Auth 상태:', { firebaseIsAuthenticated, firebaseLoading });
+    
+    // Firebase Auth가 아직 로딩 중이면 대기
+    if (firebaseLoading) {
+      console.log('⏳ Firebase Auth 로딩 중, 대기...');
+      return;
+    }
+    
     const initializeAuth = async () => {
       try {
         console.log('🔍 App: getSession 호출 중...');
@@ -1238,8 +1250,8 @@ function AppProvider({ children }: { children: ReactNode }) {
       preferences,
       notifications,
       categories,
-      isAuthenticated: !!user,
-      isLoading,
+      isAuthenticated: firebaseIsAuthenticated,
+      isLoading: isLoading || firebaseLoading,
       stats,
       login,
       loginWithGoogle,
