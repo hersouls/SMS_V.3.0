@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { checkFirebaseConnection, checkAuthStatus } from '../utils/firebase/config';
+import { firebaseApp, auth, db } from '../utils/firebase/config';
 
 interface FirebaseStatus {
   isConnected: boolean;
   isAuthenticated: boolean;
   error: string | null;
   lastChecked: Date | null;
+  configStatus: {
+    hasApiKey: boolean;
+    hasAuthDomain: boolean;
+    hasProjectId: boolean;
+    hasApp: boolean;
+    hasAuth: boolean;
+    hasDb: boolean;
+  };
 }
 
 const FirebaseDebugger: React.FC = () => {
@@ -13,13 +22,31 @@ const FirebaseDebugger: React.FC = () => {
     isConnected: false,
     isAuthenticated: false,
     error: null,
-    lastChecked: null
+    lastChecked: null,
+    configStatus: {
+      hasApiKey: false,
+      hasAuthDomain: false,
+      hasProjectId: false,
+      hasApp: false,
+      hasAuth: false,
+      hasDb: false
+    }
   });
   const [isVisible, setIsVisible] = useState(false);
 
   const checkStatus = async () => {
     try {
       console.log('🔍 Firebase 상태 확인 중...');
+      
+      // 설정 상태 확인
+      const configStatus = {
+        hasApiKey: !!import.meta.env.VITE_FIREBASE_API_KEY,
+        hasAuthDomain: !!import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        hasProjectId: !!import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        hasApp: !!firebaseApp,
+        hasAuth: !!auth,
+        hasDb: !!db
+      };
       
       const connectionResult = await checkFirebaseConnection();
       const authResult = await checkAuthStatus();
@@ -28,12 +55,14 @@ const FirebaseDebugger: React.FC = () => {
         isConnected: connectionResult,
         isAuthenticated: authResult.isAuthenticated,
         error: null,
-        lastChecked: new Date()
+        lastChecked: new Date(),
+        configStatus
       });
       
       console.log('✅ Firebase 상태 확인 완료:', {
         connected: connectionResult,
-        authenticated: authResult.isAuthenticated
+        authenticated: authResult.isAuthenticated,
+        configStatus
       });
     } catch (error) {
       console.error('❌ Firebase 상태 확인 실패:', error);
@@ -96,6 +125,49 @@ const FirebaseDebugger: React.FC = () => {
           }`}>
             {status.isAuthenticated ? '인증됨' : '인증 안됨'}
           </span>
+        </div>
+        
+        {/* 설정 상태 표시 */}
+        <div className="border-t pt-2">
+          <div className="text-xs font-semibold mb-1">설정 상태:</div>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span>API Key:</span>
+              <span className={status.configStatus.hasApiKey ? 'text-green-600' : 'text-red-600'}>
+                {status.configStatus.hasApiKey ? '✓' : '✗'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Auth Domain:</span>
+              <span className={status.configStatus.hasAuthDomain ? 'text-green-600' : 'text-red-600'}>
+                {status.configStatus.hasAuthDomain ? '✓' : '✗'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Project ID:</span>
+              <span className={status.configStatus.hasProjectId ? 'text-green-600' : 'text-red-600'}>
+                {status.configStatus.hasProjectId ? '✓' : '✗'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Firebase App:</span>
+              <span className={status.configStatus.hasApp ? 'text-green-600' : 'text-red-600'}>
+                {status.configStatus.hasApp ? '✓' : '✗'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Auth Service:</span>
+              <span className={status.configStatus.hasAuth ? 'text-green-600' : 'text-red-600'}>
+                {status.configStatus.hasAuth ? '✓' : '✗'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Database:</span>
+              <span className={status.configStatus.hasDb ? 'text-green-600' : 'text-red-600'}>
+                {status.configStatus.hasDb ? '✓' : '✗'}
+              </span>
+            </div>
+          </div>
         </div>
         
         {status.error && (

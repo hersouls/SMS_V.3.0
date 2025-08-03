@@ -2,7 +2,18 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { firebaseApp, auth } from './config';
 
 // Firebase Functions 초기화
-const functions = getFunctions(firebaseApp);
+let functions: any = null;
+
+try {
+  if (firebaseApp) {
+    functions = getFunctions(firebaseApp);
+    console.log('✅ Firebase Functions 초기화 완료');
+  } else {
+    console.warn('⚠️ Firebase 앱이 초기화되지 않아 Functions를 사용할 수 없습니다.');
+  }
+} catch (error) {
+  console.error('❌ Firebase Functions 초기화 실패:', error);
+}
 
 // Cloud Functions 호출 타입 정의
 interface CallableFunction<T = any, R = any> {
@@ -51,6 +62,10 @@ export const callCloudFunction = async <T = any, R = any>(
   data?: T
 ): Promise<R> => {
   try {
+    if (!functions) {
+      throw new Error('Firebase Functions가 초기화되지 않았습니다.');
+    }
+    
     const result = await func(data);
     return result.data;
   } catch (error: any) {

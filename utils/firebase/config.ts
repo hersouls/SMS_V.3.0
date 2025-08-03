@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { collection, query, limit, getDocs } from 'firebase/firestore';
 
 // Firebase 환경 변수
 const firebaseConfig = {
@@ -24,22 +25,16 @@ console.log('🔍 Firebase 환경 변수 확인:', {
   hasAppId: !!firebaseConfig.appId
 });
 
-// Firebase 앱 초기화 (환경 변수가 없어도 초기화 시도)
+// Firebase 앱 초기화
 let firebaseApp;
 let auth;
 let db;
 let storage;
 
 try {
-  // 환경 변수가 설정되지 않은 경우 에러 발생
+  // 필수 환경 변수 검증
   if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-    console.warn('⚠️ Firebase 환경 변수가 설정되지 않았습니다. Supabase를 사용합니다.');
-    console.warn('Firebase 설정이 필요한 경우 .env 파일에 Firebase 환경 변수를 추가하세요.');
-    
-    // 더미 설정으로 초기화 (실제 사용하지 않음)
-    firebaseConfig.apiKey = 'dummy-api-key';
-    firebaseConfig.authDomain = 'dummy.firebaseapp.com';
-    firebaseConfig.projectId = 'dummy-project';
+    throw new Error('Firebase 환경 변수가 설정되지 않았습니다. .env 파일을 확인해주세요.');
   }
 
   // Firebase 앱 초기화
@@ -54,7 +49,7 @@ try {
 } catch (error) {
   console.error('❌ Firebase 초기화 실패:', error);
   
-  // 더미 객체 생성 (에러 방지용)
+  // 초기화 실패 시 null로 설정
   firebaseApp = null;
   auth = null;
   db = null;
@@ -99,11 +94,22 @@ export const checkFirebaseConnection = async () => {
 
     console.log('🔍 Firebase 연결 확인 중...');
     
-    // Firestore 연결 테스트
-    const testDoc = await db.collection('test').doc('connection-test').get();
+    // Firestore 연결 테스트 - 실제 컬렉션에 접근
+    const testCollection = collection(db, '_connection_test');
+    const testQuery = query(testCollection, limit(1));
     
-    console.log('✅ Firebase 연결 성공');
-    return true;
+    try {
+      await getDocs(testQuery);
+      console.log('✅ Firebase 연결 성공');
+      return true;
+    } catch (firestoreError: any) {
+      // 권한 오류는 연결은 되었지만 권한이 없는 경우
+      if (firestoreError.code === 'permission-denied') {
+        console.log('✅ Firebase 연결됨 (권한 필요)');
+        return true;
+      }
+      throw firestoreError;
+    }
   } catch (error) {
     console.error('❌ Firebase 연결 오류:', error);
     return false;

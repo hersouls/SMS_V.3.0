@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User } from 'firebase/auth';
 import { authService, authStateManager } from '../utils/firebase/auth';
 import { api } from '../utils/firebase/functions';
+import { firebaseApp, auth } from '../utils/firebase/config';
 
 // Context 타입 정의
 interface FirebaseAuthContextType {
@@ -9,6 +10,7 @@ interface FirebaseAuthContextType {
   userProfile: any | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isFirebaseReady: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; message?: string }>;
   loginWithGoogle: () => Promise<void>;
   loginWithMagicLink: (email: string) => Promise<void>;
@@ -31,6 +33,22 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+
+  // Firebase 초기화 상태 확인
+  useEffect(() => {
+    const checkFirebaseReady = async () => {
+      try {
+        await auth.getToken(); // 토큰을 가져오는 것은 인증 상태를 확인하는 한 방법
+        setIsFirebaseReady(true);
+      } catch (error) {
+        console.error('Firebase 초기화 실패:', error);
+        setIsFirebaseReady(false);
+      }
+    };
+
+    checkFirebaseReady();
+  }, []);
 
   // 사용자 프로필 로드
   const loadUserProfile = async (firebaseUser: User) => {
@@ -141,6 +159,7 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
     userProfile,
     isAuthenticated: !!user,
     isLoading,
+    isFirebaseReady,
     login,
     loginWithGoogle,
     loginWithMagicLink,

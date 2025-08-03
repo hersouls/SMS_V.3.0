@@ -196,7 +196,13 @@ export const logError = (error: any, context: string, userId?: string): void => 
     timestamp: new Date().toISOString(),
     code: error.code || 'unknown',
     message: error.message || 'No message',
-    stack: error.stack || 'No stack trace'
+    stack: error.stack || 'No stack trace',
+    firebaseConfig: {
+      hasApiKey: !!import.meta.env.VITE_FIREBASE_API_KEY,
+      hasAuthDomain: !!import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      hasProjectId: !!import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'not-set'
+    }
   };
 
   console.error(`🚨 [${context}] 에러 발생:`, errorInfo);
