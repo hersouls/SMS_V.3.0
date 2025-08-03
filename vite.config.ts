@@ -98,6 +98,8 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
+  // Set base path for production builds
+  if (isProduction) {
     config.base = '/'
   }
 
