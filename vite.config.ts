@@ -74,8 +74,8 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
-  // Custom domain deployment (sub.moonwave.kr)
-  // GitHub Pages with custom domain doesn't need base path
+  // GitHub Pages deployment
+  // For custom domain (sub.moonwave.kr), base should be '/'
   if (command !== 'serve') {
     config.base = '/'
   }

@@ -1363,7 +1363,7 @@ function App() {
         <AppProvider>
           <Suspense fallback={<LoadingSpinner />}>
             <Router 
-              basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
+              basename="/"
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
           <div className="min-h-screen bg-background text-foreground dark">
