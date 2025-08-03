@@ -23,6 +23,10 @@
   --primary-900: #1e3a8a;
   --primary-950: #172554;
 
+  /* Primary HSL Values for Tailwind Compatibility */
+  --primary: 217 91% 60%;  /* HSL equivalent of #3b82f6 */
+  --primary-foreground: 0 0% 100%;  /* White text on primary */
+
   /* Secondary Colors - Purple */
   --secondary-50: #faf5ff;
   --secondary-100: #f3e8ff;
@@ -35,6 +39,10 @@
   --secondary-800: #6b21a8;
   --secondary-900: #581c87;
   --secondary-950: #3b0764;
+
+  /* Secondary HSL Values for Tailwind Compatibility */
+  --secondary: 271 81% 56%;  /* HSL equivalent of #a855f7 */
+  --secondary-foreground: 0 0% 100%;  /* White text on secondary */
 
   /* Grayscale Colors */
   --grayscale-50: #f8fafc;   /* FOREGROUND */
@@ -98,6 +106,14 @@
   --error-500: #ef4444;     /* ERROR */
   --error-600: #dc2626;
   --error-700: #b91c1c;
+
+  /* State HSL Values for Tailwind Compatibility */
+  --success: 160 84% 39%;  /* HSL equivalent of #10b981 */
+  --success-foreground: 0 0% 100%;  /* White text on success */
+  --warning: 43 96% 56%;  /* HSL equivalent of #f59e0b */
+  --warning-foreground: 0 0% 100%;  /* White text on warning */
+  --error: 0 84% 60%;  /* HSL equivalent of #ef4444 */
+  --error-foreground: 0 0% 100%;  /* White text on error */
   --error-800: #991b1b;
   --error-900: #7f1d1d;
   --error-950: #450a0a;
@@ -113,6 +129,10 @@
   --info-800: #1e40af;
   --info-900: #1e3a8a;
   --info-950: #172554;
+
+  /* Info HSL Values for Tailwind Compatibility */
+  --info: 217 91% 60%;  /* HSL equivalent of #3b82f6 */
+  --info-foreground: 0 0% 100%;  /* White text on info */
 
   /* Phase Colors for Moonwave Storytelling */
   --phase-beginning-50: #f0f9ff;
@@ -303,8 +323,8 @@
   --card-foreground: #ffffff;
   --popover: var(--moonwave-card);
   --popover-foreground: #ffffff;
-  --primary: var(--primary-500);
-  --primary-foreground: #ffffff;
+  --primary: 217 91% 60%;  /* HSL equivalent of #3b82f6 */
+  --primary-foreground: 0 0% 100%;  /* White text on primary */
   --secondary: var(--secondary-500);
   --secondary-foreground: #ffffff;
   --muted: var(--moonwave-muted);
@@ -341,8 +361,8 @@
   --card-foreground: #ffffff;
   --popover: var(--moonwave-card);
   --popover-foreground: #ffffff;
-  --primary: var(--primary-500);
-  --primary-foreground: #ffffff;
+  --primary: 217 91% 60%;  /* HSL equivalent of #3b82f6 */
+  --primary-foreground: 0 0% 100%;  /* White text on primary */
   --secondary: var(--secondary-500);
   --secondary-foreground: #ffffff;
   --muted: var(--moonwave-muted);
@@ -501,46 +521,46 @@
    완전한 애니메이션과 사용자 인터랙션 지원
 ===================================================== */
 
-/* 웨이브 애니메이션 키프레임 */
-@keyframes wave {
+/* 우주 애니메이션 키프레임 - 고해상도 최적화 */
+@keyframes twinkle {
   0%, 100% {
-    transform: rotate(0deg);
+    opacity: 0.4;
+    transform: scale(1);
   }
   50% {
-    transform: rotate(180deg);
+    opacity: 1;
+    transform: scale(1.3);
   }
 }
 
-@keyframes wave-pulse {
+@keyframes nebula {
   0%, 100% {
+    opacity: 0.5;
     transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes shooting-star {
+  0% {
+    transform: translateX(-100px) translateY(0px);
+    opacity: 0;
+  }
+  10% {
     opacity: 1;
   }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.7;
-  }
-}
-
-@keyframes wave-gentle {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-5px) rotate(1deg);
-  }
-}
-
-@keyframes wave-flow {
-  0% {
-    transform: translateX(-100px);
+  90% {
+    opacity: 1;
   }
   100% {
-    transform: translateX(100px);
+    transform: translateX(calc(100vw + 100px)) translateY(100px);
+    opacity: 0;
   }
 }
 
-/* 부드러운 애니메이션 키프레임 */
 @keyframes float {
   0%, 100% {
     transform: translateY(0px);
@@ -550,25 +570,6 @@
   }
 }
 
-@keyframes glow-primary {
-  0%, 100% {
-    box-shadow: var(--shadow-glow-primary);
-  }
-  50% {
-    box-shadow: var(--shadow-glow-primary-strong);
-  }
-}
-
-@keyframes glow-secondary {
-  0%, 100% {
-    box-shadow: var(--shadow-glow-secondary);
-  }
-  50% {
-    box-shadow: var(--shadow-glow-secondary-strong);
-  }
-}
-
-/* 슬라이드 애니메이션 */
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -580,38 +581,7 @@
   }
 }
 
-@keyframes slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
+/* 제거됨 - 성능 최적화 */
 
 /* 페이드 애니메이션 */
 @keyframes fade-in {
@@ -2184,3 +2154,34 @@ svg {
     0 8px 20px rgba(255, 255, 255, 0.25),
     0 0 12px rgba(255, 255, 255, 0.15);
 }
+
+/* 스케일 호버 효과 */
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-scale-sm:hover {
+  transform: scale(1.01);
+}
+
+.hover-scale-lg:hover {
+  transform: scale(1.05);
+}
+
+/* 클릭 시 스케일 효과 (50% 감소) */
+.active\:scale-98:active {
+  transform: scale(0.98);
+}
+
+/* 서비스 드롭다운 메뉴 스타일 */
+.service-dropdown-menu {
+  background-color: #1f2937;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-height: 240px;
+  overflow-y: auto;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+

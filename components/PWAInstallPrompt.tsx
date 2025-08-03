@@ -32,7 +32,7 @@ const PWAInstallPrompt: React.FC = () => {
 
     // 설치 프롬프트 이벤트 리스너
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
+      // preventDefault() 제거 - 브라우저의 기본 설치 배너가 표시되도록 함
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setShowInstallPrompt(true);
     };
@@ -80,7 +80,7 @@ const PWAInstallPrompt: React.FC = () => {
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('앱 설치 완료', {
             body: '구독관리 앱이 성공적으로 설치되었습니다.',
-            icon: '/favicon.ico',
+            icon: '/Moonwave_2.png',
             requireInteraction: false
           });
         }
@@ -94,13 +94,11 @@ const PWAInstallPrompt: React.FC = () => {
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('설치 오류', {
           body: '앱 설치 중 오류가 발생했습니다. 다시 시도해주세요.',
-          icon: '/favicon.ico',
+          icon: '/Moonwave_2.png',
           requireInteraction: false
         });
       }
     }
-
-    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
@@ -108,46 +106,52 @@ const PWAInstallPrompt: React.FC = () => {
     setDeferredPrompt(null);
   };
 
-  // 이미 설치되었거나 프롬프트를 표시할 필요가 없으면 렌더링하지 않음
+  // 이미 설치되어 있거나 프롬프트를 표시하지 않을 경우 렌더링하지 않음
   if (isInstalled || !showInstallPrompt) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50">
-      <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 shadow-lg">
+    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">
+      <Card className="w-80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-primary/20 shadow-lg">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Smartphone className="h-5 w-5" />
-              <CardTitle className="text-lg">앱 설치</CardTitle>
-            </div>
+            <CardTitle className="text-lg font-semibold text-foreground">
+              앱 설치
+            </CardTitle>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleDismiss}
-              className="text-white hover:bg-white/20"
+              className="h-6 w-6 p-0 hover:bg-background/80"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <CardDescription className="text-white/90 mb-4">
-            구독관리 앱을 홈 화면에 설치하여 더 빠르게 접근하세요.
+          <CardDescription className="text-sm text-muted-foreground">
+            더 나은 경험을 위해 앱을 설치해보세요
           </CardDescription>
-          <div className="flex space-x-2">
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center space-x-3 text-sm text-muted-foreground">
+            <Smartphone className="h-4 w-4 text-primary" />
+            <span>홈 화면에 바로가기 추가</span>
+          </div>
+          <div className="flex items-center space-x-3 text-sm text-muted-foreground">
+            <Download className="h-4 w-4 text-primary" />
+            <span>오프라인에서도 사용 가능</span>
+          </div>
+          <div className="flex space-x-2 pt-2">
             <Button
               onClick={handleInstallClick}
-              className="flex-1 bg-white text-blue-600 hover:bg-white/90"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              <Download className="h-4 w-4 mr-2" />
               설치하기
             </Button>
             <Button
               variant="outline"
               onClick={handleDismiss}
-              className="border-white/30 text-white hover:bg-white/10"
+              className="flex-1"
             >
               나중에
             </Button>

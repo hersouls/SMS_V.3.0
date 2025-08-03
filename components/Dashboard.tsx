@@ -4,7 +4,9 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import { useRealtimeStats } from '../hooks/useRealtimeStats';
 import { 
   Plus, 
   Calendar, 
@@ -30,22 +32,25 @@ import {
 } from 'lucide-react';
 import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
-import { QuickDataTest } from './QuickDataTest';
 
 
 export function Dashboard() {
-  const { subscriptions, settings, refreshData, isLoading } = useApp();
+  const { user } = useAuth();
+  const { subscriptions, preferences, loading: dataLoading } = useData();
+  const { stats, loading: statsLoading, refresh: refreshStats } = useRealtimeStats();
   
   // Debug logging
   console.log('🏠 Dashboard render:', {
     subscriptionsCount: subscriptions.length,
     hasSubscriptions: subscriptions.length > 0,
-    settings,
+    preferences,
     firstSubscription: subscriptions[0],
-    isLoading
+    dataLoading,
+    statsLoading
   });
   
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isLoading = dataLoading || statsLoading;
   
   // 초기 로딩 중이면 로딩 화면 표시
   if (isLoading) {
@@ -94,148 +99,74 @@ export function Dashboard() {
     return uniqueSubs;
   };
 
-  // Enhanced stats calculation with trends
-  const stats = useMemo(() => {
+  // Refresh 함수
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      await refreshStats();
+      console.log('✅ Dashboard 데이터 새로고침 완료');
+    } catch (error) {
+      console.error('❌ Dashboard 데이터 새로고침 실패:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // 필요한 헬퍼 함수들만 유지
+  const getUniqueCategories = () => {
+    if (!subscriptions || !Array.isArray(subscriptions)) return ['all'];
+    const categories = subscriptions.map(sub => sub.category);
+    const uniqueCategories = Array.from(new Set(categories));
+    return ['all', ...uniqueCategories];
+  };
+
+  const getRecentSubscriptions = () => {
+    if (!subscriptions || !Array.isArray(subscriptions)) return [];
+    return [...subscriptions]
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 5);
+  };
+
+  const getUpcomingPayments = () => {
+    if (!subscriptions || !Array.isArray(subscriptions)) return [];
     const now = new Date();
-    const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-    const currentDay = now.getDate();
+    const currentMonth = now.getMonth();
     
-    // 중복 제거된 구독 목록 사용
-    const uniqueSubscriptions = getUniqueSubscriptions();
-    
-    let totalMonthly = 0; // 1일부터 오늘까지 실제 지출한 금액
-    let monthlyTotal = 0; // 모든 활성 구독의 월간 총액
-    let totalYearly = 0;
-    let yearlySpendingToDate = 0; // 해당년도 1월 1일부터 오늘까지 지출한 합계
-    let yearlyTotal = 0; // 해당년도 1월 1일부터 12월 31일까지 지출할 합계
-    let activeCount = 0;
-    let upcomingPayments = 0;
-    let pausedCount = 0;
-    let cancelledCount = 0;
-    let todayCount = 0; // 오늘 결제 예정
-    let weekCount = 0; // 이번 주 결제 예정
-    let todayTotal = 0; // 오늘 결제 총액
-    let weeklyTotal = 0; // 이번 주 결제 총액
-    
-    // Previous month calculations for trends
-    let prevMonthTotal = 0;
-
-    uniqueSubscriptions.forEach(sub => {
-      
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
-      
-      if (sub.status === 'active') {
-        activeCount++;
-        
-        // 1일부터 오늘까지 실제 지출한 금액 계산
-        if (sub.paymentDay <= currentDay) {
-          totalMonthly += amount;
-        }
-        
-        // 모든 활성 구독의 월간 총액 계산
-        if (sub.paymentCycle === 'monthly') {
-          monthlyTotal += amount;
-          totalYearly += amount * 12;
-        } else if (sub.paymentCycle === 'yearly') {
-          totalYearly += amount;
-          monthlyTotal += amount / 12;
-        }
-
-        // 해당년도 1월 1일부터 오늘까지 지출한 합계 계산
-
-        const today = new Date(currentYear, currentMonth, currentDay);
-        
-        // 월간 구독의 경우: 1월부터 현재 월까지의 결제일 확인
-        if (sub.paymentCycle === 'monthly') {
-          for (let month = 0; month <= currentMonth; month++) {
-            const paymentDate = new Date(currentYear, month, sub.paymentDay);
-            if (paymentDate <= today) {
-              yearlySpendingToDate += amount;
-            }
-          }
-        }
-        // 연간 구독의 경우: 1월 1일 이후에 결제일이 있으면 포함
-        else if (sub.paymentCycle === 'yearly') {
-          const paymentDate = new Date(currentYear, 0, sub.paymentDay);
-          if (paymentDate <= today) {
-            yearlySpendingToDate += amount;
-          }
-        }
-
-        // 해당년도 1월 1일부터 12월 31일까지 지출할 합계 계산
-        if (sub.paymentCycle === 'monthly') {
-          // 월간 구독: 12개월 × 월간 금액
-          yearlyTotal += amount * 12;
-        } else if (sub.paymentCycle === 'yearly') {
-          // 연간 구독: 연간 금액
-          yearlyTotal += amount;
-        }
-
-        // Check for upcoming payments (next 7 days)
+    return subscriptions
+      .filter(sub => sub.status === 'active')
+      .map(sub => {
         const paymentDate = new Date(currentYear, currentMonth, sub.paymentDay);
         if (paymentDate < now) {
           paymentDate.setMonth(paymentDate.getMonth() + 1);
         }
+        const daysUntil = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         
-        const daysUntilPayment = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // 오늘 결제 예정
-        if (daysUntilPayment === 0) {
-          todayCount++;
-          todayTotal += amount;
-        }
-        
-        // 이번 주 결제 예정 (7일 이내)
-        if (daysUntilPayment <= 7 && daysUntilPayment >= 0) {
-          weekCount++;
-          weeklyTotal += amount;
-          upcomingPayments++;
-        }
-      } else if (sub.status === 'paused') {
-        pausedCount++;
-      } else if (sub.status === 'cancelled') {
-        cancelledCount++;
-      }
+        return {
+          ...sub,
+          nextPaymentDate: paymentDate,
+          daysUntil
+        };
+      })
+      .filter(sub => sub.daysUntil <= 7 && sub.daysUntil >= 0)
+      .sort((a, b) => a.daysUntil - b.daysUntil)
+      .slice(0, 5);
+  };
 
-      // Calculate previous month trend (simplified - assumes subscription existed)
-      const subStartDate = new Date(sub.startDate);
-      if (subStartDate <= new Date(lastMonthYear, lastMonth + 1, 0)) {
-        if (sub.paymentCycle === 'monthly') {
-          prevMonthTotal += amount;
-        } else if (sub.paymentCycle === 'yearly') {
-          prevMonthTotal += amount / 12;
-        }
-      }
-    });
+  const getCategoryBreakdown = () => {
+    if (!subscriptions || !Array.isArray(subscriptions)) return [];
+    return Object.entries(stats.categoryBreakdown)
+      .map(([category, data]) => ({
+        category,
+        count: data.count,
+        totalAmount: data.totalAmount
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .slice(0, 5);
+  };
 
-    const monthlyTrend = prevMonthTotal > 0 ? ((totalMonthly - prevMonthTotal) / prevMonthTotal) * 100 : 0;
-    const avgSubscriptionCost = activeCount > 0 ? totalMonthly / activeCount : 0;
-
-    return {
-      totalMonthly, // 1일부터 오늘까지 실제 지출한 금액
-      monthlyTotal, // 모든 활성 구독의 월간 총액
-      totalYearly,
-      yearlySpendingToDate, // 해당년도 1월 1일부터 오늘까지 지출한 합계
-      yearlyTotal, // 해당년도 1월 1일부터 12월 31일까지 지출할 합계
-      activeCount,
-      upcomingPayments,
-      pausedCount,
-      cancelledCount,
-      todayCount, // 오늘 결제 예정
-      weekCount, // 이번 주 결제 예정
-      todayTotal, // 오늘 결제 총액
-      weeklyTotal, // 이번 주 결제 총액
-      monthlyTrend,
-      avgSubscriptionCost,
-      totalSubscriptions: uniqueSubscriptions.length,
-      budgetUsage: (totalMonthly / monthlyBudget) * 100,
-      remainingBudget: monthlyBudget - totalMonthly
-    };
-  }, [subscriptions, settings.exchangeRate, monthlyBudget]);
 
   // Category mapping with phase colors
   const getCategoryPhase = (category: string): PhaseType => {
@@ -255,99 +186,16 @@ export function Dashboard() {
     return categoryPhaseMap[category] || 'beginning';
   };
 
-  // Enhanced refresh function
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshData();
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const getRecentSubscriptions = () => {
-    const uniqueSubscriptions = getUniqueSubscriptions();
-    const filtered = selectedCategory === 'all' 
-      ? uniqueSubscriptions 
-      : uniqueSubscriptions.filter(sub => sub.category === selectedCategory);
-      
-    return filtered
-      .sort((a, b) => new Date(b.createdAt || b.startDate).getTime() - new Date(a.createdAt || a.startDate).getTime())
-      .slice(0, 6);
-  };
-
-  const getUpcomingPayments = () => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const uniqueSubscriptions = getUniqueSubscriptions();
-
-    return uniqueSubscriptions
-      .filter(sub => sub.status === 'active')
-      .map(sub => {
-        const paymentDate = new Date(currentYear, currentMonth, sub.paymentDay);
-        if (paymentDate < now) {
-          paymentDate.setMonth(paymentDate.getMonth() + 1);
-        }
-        
-        const daysUntilPayment = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        return {
-          ...sub,
-          paymentDate,
-          daysUntilPayment
-        };
-      })
-      .filter(sub => sub.daysUntilPayment <= 7 && sub.daysUntilPayment >= 0)
-      .sort((a, b) => a.daysUntilPayment - b.daysUntilPayment)
-      .slice(0, 5);
-  };
-
-  const getCategoryBreakdown = () => {
-    const categories = new Map();
-    const uniqueSubscriptions = getUniqueSubscriptions();
-    
-    uniqueSubscriptions
-      .filter(sub => sub.status === 'active')
-      .forEach(sub => {
-        const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
-        
-        // 1일부터 말일까지의 지출합계 계산 (월간 총액 기준)
-        const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
-        categories.set(sub.category, (categories.get(sub.category) || 0) + monthlyAmount);
-      });
-
-    const sortedCategories = Array.from(categories.entries())
-      .map(([category, amount]) => ({ category, amount }))
-      .sort((a, b) => b.amount - a.amount);
-
-    // 상위 4개 카테고리와 나머지를 "기타"로 그룹화
-    if (sortedCategories.length > 4) {
-      const topCategories = sortedCategories.slice(0, 4);
-      const otherCategories = sortedCategories.slice(4);
-      const otherTotal = otherCategories.reduce((sum, item) => sum + item.amount, 0);
-      
-      return [
-        ...topCategories,
-        { category: '기타', amount: otherTotal }
-      ];
-    }
-
-    return sortedCategories;
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
-        return <CheckCircle size={16} className="text-white-force icon-enhanced" strokeWidth={1.5} />;
+        return <CheckCircle size={16} className="icon-enhanced" strokeWidth={1.5} />;
       case 'paused':
-        return <PauseCircle size={16} className="text-white-force icon-enhanced" strokeWidth={1.5} />;
+        return <PauseCircle size={16} className="icon-enhanced" strokeWidth={1.5} />;
       case 'cancelled':
-        return <XCircle size={16} className="text-white-force icon-enhanced" strokeWidth={1.5} />;
+        return <XCircle size={16} className="icon-enhanced" strokeWidth={1.5} />;
       default:
-        return <Clock size={16} className="text-white-force icon-enhanced" strokeWidth={1.5} />;
+        return <Clock size={16} className="icon-enhanced" strokeWidth={1.5} />;
     }
   };
 
@@ -357,10 +205,6 @@ export function Dashboard() {
     return amount.toLocaleString('ko-KR') + '원';
   };
 
-  const getUniqueCategories = () => {
-    const uniqueSubscriptions = getUniqueSubscriptions();
-    return ['all', ...Array.from(new Set(uniqueSubscriptions.map(sub => sub.category)))];
-  };
 
   const recentSubscriptions = getRecentSubscriptions();
   const upcomingPayments = getUpcomingPayments();
@@ -378,21 +222,21 @@ export function Dashboard() {
           {/* Enhanced Page Header */}
           <div className="flex items-center justify-end">
             <div className="flex items-center space-x-token-sm">
-                                                      <WaveButton
-                      variant="glass"
-                      size="sm"
-                      onClick={handleRefresh}
-                      disabled={isRefreshing}
-                      className="hidden md:flex wave-button-glass-enhanced hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 text-white-force font-medium touch-target"
-                      aria-label={isRefreshing ? "데이터 새로고침 중..." : "데이터 새로고침"}
-                    >
-                      <RefreshCw size={16} className={cn("mr-token-xs icon-enhanced text-white-force", isRefreshing && "animate-spin")} strokeWidth={1.5} />
-                      새로고침
-                    </WaveButton>
+              <WaveButton
+                variant="glass"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="hidden md:flex wave-button-glass-enhanced hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 text-white-force font-medium touch-target"
+                aria-label={isRefreshing ? "데이터 새로고침 중..." : "데이터 새로고침"}
+              >
+                <RefreshCw size={16} className={cn("mr-token-xs icon-enhanced", isRefreshing && "animate-spin")} strokeWidth={1.5} />
+                새로고침
+              </WaveButton>
 
               <Link to="/subscriptions/new">
                 <WaveButton variant="primary" className="shadow-lg shadow-primary-500/20 wave-button-primary-enhanced hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 text-white-force font-semibold touch-target">
-                  <Plus size={16} className="mr-token-xs icon-enhanced text-white-force" strokeWidth={1.5} />
+                  <Plus size={16} className="mr-token-xs icon-enhanced" strokeWidth={1.5} />
                   새 구독 추가
                 </WaveButton>
               </Link>
@@ -405,12 +249,12 @@ export function Dashboard() {
             <GlassCard variant="strong" className="p-token-lg group hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95">
               <div className="flex items-center justify-between mb-token-sm">
                 <div className="p-token-sm rounded-lg transition-colors">
-                  <DollarSign size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                  <DollarSign size={20} className="icon-enhanced" strokeWidth={1.5} />
                 </div>
                 {stats.monthlyTrend !== 0 && (
                   <div className={cn(
                     "flex items-center space-x-1 text-xs",
-                    stats.monthlyTrend > 0 ? "text-warning-400" : "text-success-400"
+                    stats.monthlyTrend > 0 ? "text-yellow-400" : "text-green-400"
                   )}>
                     {stats.monthlyTrend > 0 ? <TrendingUp size={12} className="icon-enhanced" /> : <TrendingDown size={12} className="icon-enhanced" />}
                     <span>{Math.abs(stats.monthlyTrend).toFixed(1)}%</span>
@@ -432,9 +276,9 @@ export function Dashboard() {
             <GlassCard variant="strong" className="p-token-lg group hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95">
               <div className="flex items-center justify-between mb-token-sm">
                 <div className="p-token-sm rounded-lg transition-colors">
-                  <Activity size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                  <Activity size={20} className="icon-enhanced" strokeWidth={1.5} />
                 </div>
-                <div className="flex items-center space-x-1 text-xs text-success-400">
+                <div className="flex items-center space-x-1 text-xs text-green-400">
                   <CheckCircle size={12} className="icon-enhanced" strokeWidth={1.5} />
                   <span>활성</span>
                 </div>
@@ -454,7 +298,7 @@ export function Dashboard() {
             <GlassCard variant="strong" className="p-token-lg group hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95">
               <div className="flex items-center justify-between mb-token-sm">
                 <div className="p-token-sm rounded-lg transition-colors">
-                  <Plus size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                  <Plus size={20} className="icon-enhanced" strokeWidth={1.5} />
                 </div>
                 <div className="flex items-center space-x-1 text-xs text-primary-400">
                   <TrendingUp size={12} className="icon-enhanced" strokeWidth={1.5} />
@@ -481,9 +325,9 @@ export function Dashboard() {
             <GlassCard variant="strong" className="p-token-lg group hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95">
               <div className="flex items-center justify-between mb-token-sm">
                 <div className="p-token-sm rounded-lg transition-colors">
-                  <XCircle size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                  <XCircle size={20} className="icon-enhanced" strokeWidth={1.5} />
                 </div>
-                <div className="flex items-center space-x-1 text-xs text-error-400">
+                <div className="flex items-center space-x-1 text-xs text-red-400">
                   <AlertCircle size={12} className="icon-enhanced" strokeWidth={1.5} />
                   <span>해지</span>
                 </div>
@@ -503,18 +347,18 @@ export function Dashboard() {
             <GlassCard variant="strong" className="p-token-lg group hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95">
               <div className="flex items-center justify-between mb-token-sm">
                 <div className="p-token-sm rounded-lg transition-colors">
-                  <BarChart3 size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                  <BarChart3 size={20} className="icon-enhanced" strokeWidth={1.5} />
                 </div>
                 {(() => {
                   const engagementScore = Math.min(100, Math.max(0, (stats.activeCount / Math.max(stats.totalSubscriptions, 1)) * 100));
-                  if (engagementScore >= 80) return <div className="flex items-center space-x-1 text-xs text-success-400"><Star size={12} className="icon-enhanced" strokeWidth={1.5} /><span>우수</span></div>;
-                  if (engagementScore >= 60) return <div className="flex items-center space-x-1 text-xs text-warning-400"><CheckCircle size={12} className="icon-enhanced" strokeWidth={1.5} /><span>양호</span></div>;
-                  return <div className="flex items-center space-x-1 text-xs text-error-400"><AlertCircle size={12} className="icon-enhanced" strokeWidth={1.5} /><span>개선</span></div>;
+                  if (engagementScore >= 80) return <div className="flex items-center space-x-1 text-xs text-green-400"><Star size={12} className="icon-enhanced" strokeWidth={1.5} /><span>우수</span></div>;
+                  if (engagementScore >= 60) return <div className="flex items-center space-x-1 text-xs text-yellow-400"><CheckCircle size={12} className="icon-enhanced" strokeWidth={1.5} /><span>양호</span></div>;
+                  return <div className="flex items-center space-x-1 text-xs text-red-400"><AlertCircle size={12} className="icon-enhanced" strokeWidth={1.5} /><span>개선</span></div>;
                 })()}
               </div>
               <div>
                 <p className="text-white-force/60 text-sm-ko mb-1">참여도 점수</p>
-                <p className="text-3xl font-bold text-white-force group-hover:text-secondary-300 transition-colors">
+                <p className="text-3xl font-bold text-white-force group-hover:text-blue-300 transition-colors">
                   {Math.min(100, Math.max(0, (stats.activeCount / Math.max(stats.totalSubscriptions, 1)) * 100)).toFixed(1)}%
                 </p>
                 <p className="text-xs text-white-force/50 mt-1">
@@ -533,7 +377,7 @@ export function Dashboard() {
                 <div className="flex items-center justify-between mb-token-lg">
                   <div className="flex items-center space-x-token-sm">
                     <div className="p-token-sm rounded-lg">
-                      <Archive size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                      <Archive size={20} className="icon-enhanced" strokeWidth={1.5} />
                     </div>
                     <div>
                       <h2 className="text-2xl-ko font-semibold text-white-force break-keep-ko">최근 구독</h2>
@@ -548,8 +392,8 @@ export function Dashboard() {
                       onChange={(e) => setSelectedCategory(e.target.value)}
                       className="px-token-sm py-1 bg-white/5 border border-white/10 rounded text-white-force text-sm-ko focus:outline-none focus:ring-2 focus:ring-white/50 hover:bg-white/10 hover:border-white/20 transition-all duration-300 break-keep-ko touch-target"
                     >
-                      {getUniqueCategories().map(category => (
-                        <option key={category} value={category} className="bg-gray-800">
+                      {getUniqueCategories().map((category, index) => (
+                        <option key={category + '-' + index} value={category} className="bg-gray-800">
                           {category === 'all' ? '전체' : category}
                         </option>
                       ))}
@@ -557,7 +401,7 @@ export function Dashboard() {
 
                     <Link to="/subscriptions">
                       <WaveButton variant="secondary" size="sm" className="text-white-force font-medium border border-white/30 hover:bg-white/20 hover:border-white/50 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95 touch-target">
-                        <List size={14} className="mr-1 icon-enhanced text-white-force" strokeWidth={1.5} />
+                        <List size={14} className="mr-1 icon-enhanced" strokeWidth={1.5} />
                         전체
                       </WaveButton>
                     </Link>
@@ -566,11 +410,11 @@ export function Dashboard() {
 
                 <div className="space-y-token-sm">
                   {recentSubscriptions.length > 0 ? (
-                    recentSubscriptions.map((subscription) => {
+                    recentSubscriptions.map((subscription, index) => {
                       const phaseColors = getPhaseColors(getCategoryPhase(subscription.category));
                       
                       return (
-                        <Link key={subscription.id} to={`/subscriptions/${subscription.id}`}>
+                        <Link key={subscription.id + '-' + index} to={`/subscriptions/${subscription.id}`}>
                           <div className="flex items-center justify-between p-token-md glass-light rounded-lg border border-white/10 hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 group cursor-pointer hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95 keyboard-navigation">
                             <div className="flex items-center space-x-token-md">
                               <div className={cn(
@@ -611,7 +455,7 @@ export function Dashboard() {
                               <div className="flex items-center space-x-2">
                                 <div className="text-right">
                                   <p className="text-sm-ko font-medium text-white-force">
-                                    {formatCurrency(subscription.currency === 'USD' ? subscription.amount * settings.exchangeRate : subscription.amount)}
+                                    {formatCurrency(subscription.currency === 'USD' ? subscription.amount * preferences.exchangeRate : subscription.amount)}
                                   </p>
                                   <p className="text-xs text-white-force/60">
                                     {subscription.paymentCycle === 'monthly' ? '월간' : 
@@ -638,7 +482,7 @@ export function Dashboard() {
                       </p>
                       <Link to="/subscriptions/new">
                         <WaveButton variant="primary" className="hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95 text-white-force">
-                          <Plus size={16} className="mr-token-xs icon-enhanced text-white-force" strokeWidth={1.5} />
+                          <Plus size={16} className="mr-token-xs icon-enhanced" strokeWidth={1.5} />
                           첫 구독 추가하기
                         </WaveButton>
                       </Link>
@@ -656,7 +500,7 @@ export function Dashboard() {
                 <div className="flex items-center justify-between mb-token-lg">
                   <div className="flex items-center space-x-token-sm">
                     <div className="p-token-sm rounded-lg">
-                      <Bell size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                      <Bell size={20} className="icon-enhanced" strokeWidth={1.5} />
                     </div>
                     <div>
                       <h2 className="text-2xl-ko font-semibold text-white-force break-keep-ko">다가오는 결제</h2>
@@ -665,18 +509,18 @@ export function Dashboard() {
                   </div>
                   <Link to="/calendar">
                     <WaveButton variant="secondary" size="sm" className="text-white-force font-medium border border-white/30 hover:bg-white/20 hover:border-white/50 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95 touch-target">
-                                              <Calendar size={14} className="icon-enhanced text-white-force" strokeWidth={1.5} />
+                                              <Calendar size={14} className="icon-enhanced" strokeWidth={1.5} />
                     </WaveButton>
                   </Link>
                 </div>
 
                 <div className="space-y-token-sm">
                   {upcomingPayments.length > 0 ? (
-                    upcomingPayments.map((payment) => {
+                    upcomingPayments.map((payment, index) => {
                       const phaseColors = getPhaseColors(getCategoryPhase(payment.category));
                       
                       return (
-                        <Link key={payment.id} to={`/subscriptions/${payment.id}`}>
+                        <Link key={payment.id + '-' + index} to={`/subscriptions/${payment.id}`}>
                           <div className="p-token-md glass-light rounded-lg border border-white/10 hover:bg-white/30 hover:border-white/40 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-300 group cursor-pointer hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95 keyboard-navigation">
                             <div className="flex items-center justify-between mb-token-sm">
                               <div className="flex items-center space-x-token-sm">
@@ -721,7 +565,7 @@ export function Dashboard() {
                                 })}
                               </p>
                               <p className="text-sm-ko font-medium text-white-force">
-                                {formatCurrency(payment.currency === 'USD' ? payment.amount * settings.exchangeRate : payment.amount)}
+                                {formatCurrency(payment.currency === 'USD' ? payment.amount * preferences.exchangeRate : payment.amount)}
                               </p>
                             </div>
                           </div>
@@ -745,7 +589,7 @@ export function Dashboard() {
                 <div className="flex items-center justify-between mb-token-lg">
                   <div className="flex items-center space-x-token-sm">
                     <div className="p-token-sm rounded-lg">
-                      <PieChart size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                      <PieChart size={20} className="icon-enhanced" strokeWidth={1.5} />
                     </div>
                     <div>
                       <h2 className="text-2xl-ko font-semibold text-white-force break-keep-ko">카테고리별 지출비율</h2>
@@ -789,7 +633,7 @@ export function Dashboard() {
                           
                           return (
                             <div
-                              key={item.category}
+                              key={item.category + '-' + index}
                               className={cn(
                                 "absolute h-full transition-all duration-500",
                                 progressColor
@@ -822,7 +666,7 @@ export function Dashboard() {
                           const progressColor = categoryColors[index % categoryColors.length];
                           
                           return (
-                            <div key={item.category} className="flex items-center justify-between p-token-sm hover:bg-white/10 hover:border-white/20 hover:translate-y-[-1px] hover:shadow-lg transition-all duration-300 rounded-lg border border-transparent hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95 keyboard-navigation">
+                            <div key={item.category + '-' + index} className="flex items-center justify-between p-token-sm hover:bg-white/10 hover:border-white/20 hover:translate-y-[-1px] hover:shadow-lg transition-all duration-300 rounded-lg border border-transparent hover:scale-105 focus:ring-2 focus:ring-white/50 active:scale-95 keyboard-navigation">
                               <div className="flex items-center space-x-token-xs">
                                 <span className={cn("w-3 h-3 rounded-full", progressColor)}></span>
                                 <span className="text-white-force text-sm-ko break-keep-ko">{item.category}</span>
@@ -856,7 +700,7 @@ export function Dashboard() {
             <div className="flex items-center justify-between mb-token-lg">
               <div className="flex items-center space-x-token-sm">
                                     <div className="p-token-sm rounded-lg">
-                      <Sparkles size={20} className="text-white-force icon-enhanced" strokeWidth={1.5} />
+                      <Sparkles size={20} className="icon-enhanced" strokeWidth={1.5} />
                     </div>
                 <div>
                                         <h2 className="text-2xl-ko font-semibold text-white-force break-keep-ko">빠른 작업</h2>
@@ -899,21 +743,21 @@ export function Dashboard() {
                   color: "warning",
                   gradient: "from-warning-500 to-warning-600"
                 }
-              ].map((action) => {
+              ].map((action, index) => {
                 const IconComponent = action.icon;
                 
                 return (
-                  <Link key={action.to} to={action.to}>
+                  <Link key={action.to + '-' + index} to={action.to}>
                     <div className="p-token-lg glass-light rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all duration-300 cursor-pointer group hover:scale-105 hover:shadow-xl hover:translate-y-[-2px] active:scale-95 focus:ring-2 focus:ring-white/50 focus:outline-none touch-target">
                       <div className="flex flex-col items-center text-center space-y-token-md">
                         <div className={cn(
                           "w-14 h-14 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-all duration-300 bg-gradient-to-br",
                           action.to === "/subscriptions/new" && "from-blue-500/60 to-purple-600/60 border border-blue-400/30",
-                          action.to === "/subscriptions" && "from-emerald-500/60 to-teal-600/60 border border-emerald-400/30",
+                          action.to === "/subscriptions" && "from-green-500/60 to-teal-600/60 border border-green-400/30",
                           action.to === "/calendar" && "from-orange-500/60 to-red-500/60 border border-orange-400/30",
-                          action.to === "/settings" && "from-slate-500/60 to-gray-600/60 border border-slate-400/30"
+                          action.to === "/settings" && "from-gray-500/60 to-gray-600/60 border border-gray-400/30"
                         )}>
-                          <IconComponent size={24} className="icon-enhanced text-white-force" strokeWidth={1.5} />
+                          <IconComponent size={24} className="icon-enhanced" strokeWidth={1.5} />
                         </div>
                         <div>
                           <h3 className="font-medium text-white-force group-hover:text-primary-300 transition-colors mb-1 break-keep-ko">
@@ -933,12 +777,6 @@ export function Dashboard() {
         </div>
       </main>
 
-      {/* Debug Component - Only show in development */}
-      {import.meta.env.DEV && (
-        <div className="container mx-auto px-token-md pb-token-lg">
-          <QuickDataTest />
-        </div>
-      )}
 
       {/* Enhanced Footer */}
       <Footer />

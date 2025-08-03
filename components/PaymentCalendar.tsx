@@ -4,7 +4,10 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useLoadingState } from '../hooks/useLoadingState';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -28,11 +31,13 @@ import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
 
 export function PaymentCalendar() {
-  const { subscriptions, settings, user, refreshData } = useApp();
+  const { user } = useAuth();
+  const { subscriptions, preferences } = useData();
+  const { handleError } = useErrorHandler();
+  const { isLoading, withLoading } = useLoadingState();
   const navigate = useNavigate();
   
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [filterCategory, setFilterCategory] = useState('all');
 
@@ -58,14 +63,13 @@ export function PaymentCalendar() {
 
   // Enhanced refresh function
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshData();
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
+    await withLoading('refresh', async () => {
+      try {
+        console.log('✅ Firebase 실시간 데이터 새로고침');
+      } catch (error) {
+        handleError(error, '데이터 새로고침에 실패했습니다.');
+      }
+    });
   };
 
   // Calendar navigation
@@ -94,7 +98,9 @@ export function PaymentCalendar() {
 
   // Get unique categories
   const getUniqueCategories = () => {
-    return ['all', ...Array.from(new Set(subscriptions.map(sub => sub.category)))];
+    const categories = subscriptions.map(sub => sub.category);
+    const uniqueCategories = Array.from(new Set(categories));
+    return ['all', ...uniqueCategories];
   };
 
   // Filter subscriptions by category
@@ -179,7 +185,7 @@ export function PaymentCalendar() {
 
     // 해당년도 1월 1일부터 오늘까지 지출한 합계 계산
     const yearlySpendingToDate = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       
       // 해당년도 1월 1일부터 오늘까지의 결제일을 확인하여 실제 지출액 계산
       
@@ -207,7 +213,7 @@ export function PaymentCalendar() {
 
     // 해당년도 1월 1일부터 12월 31일까지 지출할 합계 계산
     const yearlyTotal = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       
       if (sub.paymentCycle === 'monthly') {
         // 월간 구독: 12개월 × 월간 금액
@@ -222,7 +228,7 @@ export function PaymentCalendar() {
 
     // 1일부터 오늘까지 지출한 금액 계산 (기존 로직 유지)
     const totalMonthly = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       
       // 1일부터 오늘까지의 결제일을 확인하여 실제 지출액 계산
       if (sub.paymentDay <= currentDay) {
@@ -232,7 +238,7 @@ export function PaymentCalendar() {
     }, 0);
 
     const monthlyTotal = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
       return total + monthlyAmount;
     }, 0);
@@ -243,13 +249,13 @@ export function PaymentCalendar() {
 
     // Calculate this week's total amount
     const weeklyTotal = thisWeekPayments.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       return total + amount;
     }, 0);
 
     // Calculate today's total amount
     const todayTotal = todaysPayments.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       return total + amount;
     }, 0);
 
@@ -266,10 +272,10 @@ export function PaymentCalendar() {
       todayTotal,
       averagePayment: filteredSubscriptions.length > 0 ? monthlyTotal / filteredSubscriptions.length : 0
     };
-  }, [filteredSubscriptions, settings.exchangeRate, todaysPayments, thisWeekPayments, upcomingPayments]);
+  }, [filteredSubscriptions, preferences.exchangeRate, todaysPayments, thisWeekPayments, upcomingPayments]);
 
   const formatCurrency = (amount: number, currency: 'KRW' | 'USD') => {
-    const finalAmount = currency === 'USD' ? amount * settings.exchangeRate : amount;
+    const finalAmount = currency === 'USD' ? amount * preferences.exchangeRate : amount;
     return finalAmount.toLocaleString('ko-KR') + '원';
   };
 
@@ -284,13 +290,13 @@ export function PaymentCalendar() {
   const getUrgencyClass = (urgency: string) => {
     switch (urgency) {
       case 'today':
-        return 'bg-error-500/20 text-error-300 border-error-500/30';
+        return 'bg-red-500/20 text-red-300 border-red-500/30';
       case 'tomorrow':
-        return 'bg-warning-500/20 text-warning-300 border-warning-500/30';
+        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
       case 'urgent':
-        return 'bg-warning-500/15 text-warning-400 border-warning-500/20';
+        return 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20';
       case 'soon':
-        return 'bg-info-500/15 text-info-400 border-info-500/20';
+        return 'bg-blue-500/15 text-blue-400 border-blue-500/20';
       default:
         return 'bg-white/10 text-white-force border-white/20';
     }
@@ -322,7 +328,7 @@ export function PaymentCalendar() {
                 <div className="flex items-center space-x-token-sm mb-token-xs">
                   <h1 className="text-3xl font-bold text-white-force">결제 캘린더</h1>
                   {stats.upcomingCount > 0 && (
-                    <div className="flex items-center space-x-1 px-2 py-1 bg-warning-500/40 border-warning-400/60 shadow-lg shadow-warning-500/30 text-white-force rounded-full text-xs font-semibold border-2">
+                    <div className="flex items-center space-x-1 px-2 py-1 bg-yellow-500/40 border-yellow-400/60 shadow-lg shadow-yellow-500/30 text-white-force rounded-full text-xs font-semibold border-2">
                       <Bell size={12} className="icon-enhanced" />
                       <span>{stats.upcomingCount}건 예정</span>
                     </div>
@@ -342,10 +348,10 @@ export function PaymentCalendar() {
                 variant="ghost"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={isRefreshing}
+                disabled={isLoading('refresh')}
                 className="hidden md:flex text-white-force hover:text-white hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
               >
-                <RefreshCw size={16} className={cn("mr-token-xs icon-enhanced text-white-force", isRefreshing && "animate-spin")} />
+                <RefreshCw size={16} className={cn("mr-token-xs icon-enhanced text-white-force", isLoading('refresh') && "animate-spin")} />
                 새로고침
               </WaveButton>
 
@@ -410,16 +416,16 @@ export function PaymentCalendar() {
                     <div className={cn(
                       "p-token-sm rounded-lg",
                       stat.color === 'primary' && "bg-primary-500/20",
-                      stat.color === 'success' && "bg-success-500/20",
-                      stat.color === 'warning' && "bg-warning-500/20",
-                      stat.color === 'secondary' && "bg-secondary-500/20"
+                      stat.color === 'success' && "bg-green-500/20",
+                      stat.color === 'warning' && "bg-yellow-500/20",
+                      stat.color === 'secondary' && "bg-blue-500/20"
                     )}>
                       <IconComponent size={20} className={cn(
                         "icon-enhanced",
                         stat.color === 'primary' && "text-primary-400",
                         stat.color === 'success' && "text-white-force",
-                        stat.color === 'warning' && "text-warning-400",
-                        stat.color === 'secondary' && "text-secondary-400"
+                        stat.color === 'warning' && "text-yellow-400",
+                        stat.color === 'secondary' && "text-blue-400"
                       )} />
                     </div>
                     
@@ -475,8 +481,8 @@ export function PaymentCalendar() {
                     onChange={(e) => setFilterCategory(e.target.value)}
                     className="px-token-sm py-token-xs bg-white/5 border border-white/10 rounded text-white-force text-sm-ko focus:outline-none focus:ring-2 focus:ring-primary-500 keyboard-navigation"
                   >
-                    {getUniqueCategories().map(category => (
-                      <option key={category} value={category} className="bg-gray-800 text-white-force">
+                    {getUniqueCategories().map((category, index) => (
+                      <option key={`${category}-${index}`} value={category} className="bg-gray-800 text-white-force">
                         {category === 'all' ? '전체 카테고리' : category}
                       </option>
                     ))}
@@ -639,7 +645,7 @@ export function PaymentCalendar() {
                         const subscriptionsOnDay = filteredSubscriptions.filter(sub => sub.paymentDay === day);
                         const isToday = isCurrentMonth && day === todayDate;
                         const totalAmount = subscriptionsOnDay.reduce((total, sub) => {
-                          const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+                          const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
                           return total + amount;
                         }, 0);
                         
@@ -735,8 +741,8 @@ export function PaymentCalendar() {
               {/* Today's Payments */}
               <GlassCard variant="strong" className="p-token-lg">
                 <div className="flex items-center space-x-token-sm mb-token-lg">
-                  <div className="p-token-sm bg-warning-500/20 rounded-lg">
-                    <Timer size={20} className="text-warning-400 icon-enhanced" />
+                  <div className="p-token-sm bg-yellow-500/20 rounded-lg">
+                    <Timer size={20} className="text-yellow-400 icon-enhanced" />
                   </div>
                   <div>
                     <h3 className="text-white-force font-semibold text-lg-ko">오늘의 결제</h3>
@@ -793,7 +799,7 @@ export function PaymentCalendar() {
                     })
                   ) : (
                     <div className="text-center py-token-lg">
-                      <div className="w-12 h-12 bg-success-500/20 rounded-full flex items-center justify-center mx-auto mb-token-sm">
+                      <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-token-sm">
                         <CheckCircle size={24} className="text-white-force icon-enhanced" />
                       </div>
                       <h4 className="text-white-force font-medium mb-1 text-lg-ko">모든 결제 완료!</h4>
@@ -806,8 +812,8 @@ export function PaymentCalendar() {
               {/* Upcoming Payments */}
               <GlassCard variant="strong" className="p-token-lg">
                 <div className="flex items-center space-x-token-sm mb-token-lg">
-                  <div className="p-token-sm bg-info-500/20 rounded-lg">
-                    <Bell size={20} className="text-info-400 icon-enhanced" />
+                  <div className="p-token-sm bg-blue-500/20 rounded-lg">
+                    <Bell size={20} className="text-blue-400 icon-enhanced" />
                   </div>
                   <div>
                     <h3 className="text-white-force font-semibold text-lg-ko">다가오는 결제</h3>

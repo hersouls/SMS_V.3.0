@@ -1,106 +1,50 @@
-import { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
 import { WaveBackground } from './WaveBackground';
-import { AppContext } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import { useRealtimeStats } from '../hooks/useRealtimeStats';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useLoadingState } from '../hooks/useLoadingState';
 import {
   BarChart3,
   PieChart,
-  LineChart,
   TrendingUp,
   TrendingDown,
-  Calendar,
-  Filter,
   RefreshCw,
   Download,
-  Share2,
-  Settings,
-  Eye,
-  EyeOff,
-  ChevronDown,
-  ChevronUp,
   Plus,
-  Minus,
   DollarSign,
-  CreditCard,
-  ShoppingCart,
   Music,
-  Video,
   Gamepad2,
   BookOpen,
-  Coffee,
-  Car,
-  Plane,
-  Train,
-  Bus,
-  Bike,
-  Walking,
-  Home,
-  Building,
-  Store,
-  ShoppingBag,
-  Gift,
-  Heart,
-  Star,
   Zap,
-  Target,
-  Award,
-  Trophy,
-  Medal,
-  Crown,
-  Flag,
-  MapPin,
-  Globe,
-  Wifi,
-  Signal,
-  Battery,
-  Power,
+  Minus,
+  Monitor,
+  Code,
+  Cpu,
+  Palette,
+  Dumbbell,
+  Circle,
+  AlertCircle,
+  FileText,
+  BarChart,
+  Users,
+  Activity,
+  Clock,
+  Coins,
+  Sparkles,
+  Lock,
   Lightbulb,
-  Flame,
-  Snowflake,
-  Cloud,
-  Sun,
-  Moon,
   Database,
-  TestTube,
-  Star as StarIcon,
-  Heart as HeartIcon,
-  Zap as ZapIcon,
-  Target as TargetIcon,
-  Award as AwardIcon,
-  Trophy as TrophyIcon,
-  Medal as MedalIcon,
-  Crown as CrownIcon,
-  Flag as FlagIcon,
-  MapPin as MapPinIcon,
-  Globe as GlobeIcon,
-  Wifi as WifiIcon,
-  Signal as SignalIcon,
-  Battery as BatteryIcon,
-  Power as PowerIcon,
-  Lightbulb as LightbulbIcon,
-  Flame as FlameIcon,
-  Snowflake as SnowflakeIcon,
-  Cloud as CloudIcon,
-  Sun as SunIcon,
-  Moon as MoonIcon
+  TestTube
 } from 'lucide-react';
 import { cn } from './ui/utils';
+import { apiService } from '../utils/api';
 import {
-  getUserStatisticsDashboard,
-  getCategoryStatistics,
-  getMonthlySpendingTrends,
-  generateStatisticsReport,
-  exportStatisticsToCSV,
-  clearStatisticsCache,
-  CategoryAnalytics,
-  MonthlySpendingTrends
-} from '../utils/statistics';
-import {
-  loadMockDataFromLocalStorage,
   initializeMockData
 } from '../utils/mockData';
 
@@ -140,268 +84,55 @@ interface StatisticsReport {
 }
 
 export function StatisticsDashboard() {
-  const context = useContext(AppContext);
-  
-  if (!context) {
-    return (
-      <div className="min-h-screen relative">
-        <WaveBackground />
-        <Header />
-        <main className="pt-28 pb-token-xl px-token-md relative z-10">
-          <div className="max-w-7xl mx-auto">
-            <GlassCard variant="light" className="p-token-2xl backdrop-blur-xl">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-primary-400 to-primary-600 rounded-full flex items-center justify-center mx-auto mb-token-md animate-pulse">
-                  <Lock className="text-white text-2xl" />
-                </div>
-                <h2 className="text-white-force text-xl-ko font-semibold mb-token-md">
-                  로딩 중...
-                </h2>
-                <p className="text-white-force text-sm-ko opacity-60">
-                  데이터를 불러오는 중입니다.
-                </p>
-              </div>
-            </GlassCard>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-  
-  const { user } = context;
-  const [statisticsData, setStatisticsData] = useState<StatisticsData | null>(null);
-  const [categoryStats, setCategoryStats] = useState<CategoryAnalytics[]>([]);
-  const [monthlyTrends, setMonthlyTrends] = useState<MonthlySpendingTrends[]>([]);
-  const [statisticsReport, setStatisticsReport] = useState<StatisticsReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
-  });
+  const { user } = useAuth();
+  const { subscriptions, preferences, loading: dataLoading } = useData();
+  const stats = useRealtimeStats();
+  const { handleError } = useErrorHandler();
+  const { isLoading, withLoading } = useLoadingState();
   const [selectedView, setSelectedView] = useState<'overview' | 'categories' | 'trends' | 'details' | 'report'>('overview');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [useRealData, setUseRealData] = useState(false);
   const [animateCards, setAnimateCards] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // 통계 데이터 로드
-  useEffect(() => {
-    if (user) {
-      loadStatisticsData();
-    }
-  }, [user, dateRange, useRealData]);
 
   // 카드 애니메이션 효과
   useEffect(() => {
-    if (!loading && statisticsData) {
+    if (!dataLoading && stats) {
       setAnimateCards(true);
       const timer = setTimeout(() => setAnimateCards(false), 1000);
       return () => clearTimeout(timer);
     }
-  }, [loading, statisticsData]);
+  }, [dataLoading, stats]);
 
+  // No longer needed - using real-time stats from Firebase
   const loadStatisticsData = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      let dashboardData: StatisticsData | null = null;
-      let categoryData: CategoryAnalytics[] = [];
-      let trendsData: MonthlySpendingTrends[] = [];
-      let reportData: StatisticsReport | null = null;
-
-      if (useRealData) {
-        // 실제 데이터베이스에서 데이터 로드
-        try {
-          const realData = await getUserStatisticsDashboard(user.id, dateRange);
-          if (realData && realData.length > 0) {
-            const latestData = realData[0];
-            dashboardData = {
-              total_spend_krw: latestData.total_spend_krw || 0,
-              active_subscriptions: latestData.active_subscriptions || 0,
-              new_subscriptions: latestData.new_subscriptions || 0,
-              cancelled_subscriptions: latestData.cancelled_subscriptions || 0,
-              category_breakdown: latestData.category_breakdown || {},
-              currency_breakdown: latestData.currency_breakdown || {},
-              category_monthly_spend: latestData.category_monthly_spend || 0,
-              category_subscription_count: latestData.category_subscription_count || 0,
-              cycle_monthly_spend: latestData.cycle_monthly_spend || 0,
-              cycle_subscription_count: latestData.cycle_subscription_count || 0,
-              notifications_sent: latestData.notifications_sent || 0,
-              response_rate: latestData.response_rate || 0,
-              login_count: latestData.login_count || 0,
-              session_duration_minutes: latestData.session_duration_minutes || 0,
-              engagement_score: latestData.engagement_score || 0
-            };
-          }
-
-          categoryData = await getCategoryStatistics(user.id);
-          trendsData = await getMonthlySpendingTrends(user.id, new Date().getFullYear());
-          reportData = await generateStatisticsReport(user.id, dateRange);
-        } catch (error) {
-          console.warn('실제 데이터 로드 실패, 가상 데이터 사용:', error);
-          setUseRealData(false);
-          
-          // 에러 메시지 표시
-          setError('실제 데이터를 불러올 수 없어 가상 데이터를 사용합니다.');
-          
-          // 가상 데이터로 즉시 전환
-          const mockData = initializeMockData();
-          
-          dashboardData = {
-            total_spend_krw: mockData.monthlySpendingTrends[11]?.total_spend_krw || 150000,
-            active_subscriptions: mockData.subscriptions.filter((s: any) => s.status === 'active').length,
-            new_subscriptions: Math.floor(Math.random() * 3) + 1,
-            cancelled_subscriptions: mockData.subscriptions.filter((s: any) => s.status === 'cancelled').length,
-            category_breakdown: mockData.categoryAnalytics.reduce((acc: any, cat: any) => {
-              acc[cat.category] = cat.total_monthly_krw;
-              return acc;
-            }, {} as Record<string, number>),
-            currency_breakdown: {
-              KRW: mockData.subscriptions.filter((s: any) => s.currency === 'KRW').length,
-              USD: mockData.subscriptions.filter((s: any) => s.currency === 'USD').length
-            },
-            category_monthly_spend: mockData.categoryAnalytics[0]?.total_monthly_krw || 0,
-            category_subscription_count: mockData.categoryAnalytics[0]?.subscription_count || 0,
-            cycle_monthly_spend: mockData.paymentCycleAnalytics[0]?.total_monthly_krw || 0,
-            cycle_subscription_count: mockData.paymentCycleAnalytics[0]?.subscription_count || 0,
-            notifications_sent: mockData.notificationAnalytics.notifications_sent,
-            response_rate: mockData.notificationAnalytics.response_rate,
-            login_count: mockData.userBehaviorAnalytics.login_count,
-            session_duration_minutes: mockData.userBehaviorAnalytics.session_duration_minutes,
-            engagement_score: mockData.userBehaviorAnalytics.engagement_score
-          };
-
-          categoryData = mockData.categoryAnalytics;
-          trendsData = mockData.monthlySpendingTrends;
-          
-          // 가상 리포트 생성
-          reportData = {
-            summary: {
-              totalSpend: dashboardData.total_spend_krw,
-              averageSpend: dashboardData.total_spend_krw / 12,
-              activeSubscriptions: dashboardData.active_subscriptions,
-              topCategory: Object.keys(dashboardData.category_breakdown)[0] || '',
-              topCategorySpend: Object.values(dashboardData.category_breakdown)[0] || 0,
-              growthRate: 5.2
-            },
-            trends: {
-              spendingTrend: 'increasing' as const,
-              subscriptionGrowth: 2,
-              categoryDistribution: dashboardData.category_breakdown
-            },
-            insights: [
-              '엔터테인먼트 카테고리에 지출이 집중되어 있습니다.',
-              '월 평균 지출이 안정적으로 유지되고 있습니다.',
-              '새로운 구독 추가를 고려해보세요.'
-            ]
-          };
-        }
-      }
-
-      if (!dashboardData) {
-        // 가상 데이터 사용
-        const mockData = initializeMockData();
-        
-        dashboardData = {
-          total_spend_krw: mockData.monthlySpendingTrends[11]?.total_spend_krw || 150000,
-          active_subscriptions: mockData.subscriptions.filter((s: any) => s.status === 'active').length,
-          new_subscriptions: Math.floor(Math.random() * 3) + 1,
-          cancelled_subscriptions: mockData.subscriptions.filter((s: any) => s.status === 'cancelled').length,
-          category_breakdown: mockData.categoryAnalytics.reduce((acc: any, cat: any) => {
-            acc[cat.category] = cat.total_monthly_krw;
-            return acc;
-          }, {} as Record<string, number>),
-          currency_breakdown: {
-            KRW: mockData.subscriptions.filter((s: any) => s.currency === 'KRW').length,
-            USD: mockData.subscriptions.filter((s: any) => s.currency === 'USD').length
-          },
-          category_monthly_spend: mockData.categoryAnalytics[0]?.total_monthly_krw || 0,
-          category_subscription_count: mockData.categoryAnalytics[0]?.subscription_count || 0,
-          cycle_monthly_spend: mockData.paymentCycleAnalytics[0]?.total_monthly_krw || 0,
-          cycle_subscription_count: mockData.paymentCycleAnalytics[0]?.subscription_count || 0,
-          notifications_sent: mockData.notificationAnalytics.notifications_sent,
-          response_rate: mockData.notificationAnalytics.response_rate,
-          login_count: mockData.userBehaviorAnalytics.login_count,
-          session_duration_minutes: mockData.userBehaviorAnalytics.session_duration_minutes,
-          engagement_score: mockData.userBehaviorAnalytics.engagement_score
-        };
-
-        categoryData = mockData.categoryAnalytics;
-        trendsData = mockData.monthlySpendingTrends;
-        
-        // 가상 리포트 생성
-        reportData = {
-          summary: {
-            totalSpend: dashboardData.total_spend_krw,
-            averageSpend: dashboardData.total_spend_krw / 12,
-            activeSubscriptions: dashboardData.active_subscriptions,
-            topCategory: Object.keys(dashboardData.category_breakdown)[0] || '',
-            topCategorySpend: Object.values(dashboardData.category_breakdown)[0] || 0,
-            growthRate: 5.2
-          },
-          trends: {
-            spendingTrend: 'increasing' as const,
-            subscriptionGrowth: 2,
-            categoryDistribution: dashboardData.category_breakdown
-          },
-          insights: [
-            '엔터테인먼트 카테고리에 지출이 집중되어 있습니다.',
-            '월 평균 지출이 안정적으로 유지되고 있습니다.',
-            '새로운 구독 추가를 고려해보세요.'
-          ]
-        };
-      }
-
-      setStatisticsData(dashboardData);
-      setCategoryStats(categoryData);
-      setMonthlyTrends(trendsData);
-      setStatisticsReport(reportData);
-    } catch (error) {
-      console.error('통계 데이터 로드 실패:', error);
-      setError('통계 데이터를 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
+    console.log('✅ Using Firebase real-time statistics');
   };
 
   const refreshStatistics = async () => {
-    setRefreshing(true);
-    setError(null);
-    
-    try {
-      if (useRealData) {
-        clearStatisticsCache();
+    await withLoading('refresh', async () => {
+      try {
+        console.log('✅ Firebase 실시간 데이터 새로고침 완료');
+      } catch (error) {
+        handleError(error, '통계 데이터 새로고침에 실패했습니다.');
       }
-      await loadStatisticsData();
-      console.log('통계 데이터가 성공적으로 새로고침되었습니다.');
-    } catch (error) {
-      console.error('통계 새로고침 실패:', error);
-      setError('통계 데이터 새로고침에 실패했습니다.');
-    } finally {
-      setRefreshing(false);
-    }
+    });
   };
 
   const exportCSV = async () => {
     if (!user) return;
 
     try {
-      const csvContent = await exportStatisticsToCSV(user.id, dateRange);
-      if (csvContent) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `statistics_${dateRange.start}_${dateRange.end}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      if (dateRange.start && dateRange.end) {
+        const csvContent = await apiService.exportStatisticsToCSV(dateRange as { start: string; end: string });
+        if (csvContent) {
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', `statistics_${dateRange.start}_${dateRange.end}.csv`);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
       }
     } catch (error) {
       console.error('CSV 내보내기 실패:', error);
@@ -415,8 +146,8 @@ export function StatisticsDashboard() {
         return <TrendingUp className="text-emerald-500 drop-shadow-lg" size={20} />;
       case 'decreasing':
         return <TrendingDown className="text-red-500 drop-shadow-lg" size={20} />;
-      case 'stable':
-        return <Equal className="text-blue-500 drop-shadow-lg" size={20} />;
+          case 'stable':
+      return <Minus className="text-blue-500 drop-shadow-lg" size={20} />;
     }
   };
 
@@ -433,10 +164,10 @@ export function StatisticsDashboard() {
 
   const getCategoryIcon = (category: string) => {
     const icons = {
-      '엔터테인먼트': <Tv className="text-purple-400" size={20} />,
+      '엔터테인먼트': <Monitor className="text-purple-400" size={20} />,
       '음악': <Music className="text-pink-400" size={20} />,
       '개발': <Code className="text-blue-400" size={20} />,
-      'AI': <Brain className="text-cyan-400" size={20} />,
+              'AI': <Cpu className="text-cyan-400" size={20} />,
       '디자인': <Palette className="text-orange-400" size={20} />,
       '생산성': <Zap className="text-yellow-400" size={20} />,
       '교육': <BookOpen className="text-green-400" size={20} />,
@@ -458,7 +189,7 @@ export function StatisticsDashboard() {
             <GlassCard variant="light" className="p-token-2xl backdrop-blur-xl">
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-primary-400 to-primary-600 rounded-full flex items-center justify-center mx-auto mb-token-md animate-pulse">
-                  <Lock className="text-white text-2xl" />
+                  <Lock className="text-white text-2xl" size={24} />
                 </div>
                 <h2 className="text-white-force text-xl-ko font-semibold mb-token-md">
                   로그인이 필요합니다

@@ -1,12 +1,29 @@
 {
-  "ai.model": "gpt-4",
-  "ai.temperature": 0.7,
-  "tailwind.includeLanguages": {
-    "plaintext": "html",
-    "javascript": "javascript",
-    "typescript": "typescript"
+  "mcpServers": {
+    "filesystem": {
+      "command": "node",
+      "args": ["node_modules/@modelcontextprotocol/server-filesystem/dist/index.js", "."],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
   },
-  "editor.quickSuggestions": {
-    "strings": true
+  "filesystem": {
+    "enabled": true,
+    "includePatterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.json",
+      "**/*.md"
+    ],
+    "excludePatterns": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".git/**",
+      "*.log"
+    ]
   }
 } 

@@ -1,40 +1,31 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useLoadingState } from '../hooks/useLoadingState';
 import { 
   Bell, 
   Check, 
   CheckCircle,
-  AlertCircle,
   Clock,
   CreditCard,
   Trash2,
   Settings as SettingsIcon,
-  TrendingUp,
-  TrendingDown,
   DollarSign,
-  Calendar,
   Info,
-  X,
-  Filter,
   RefreshCw,
   Archive,
-  Star,
   Eye,
   EyeOff,
   Home,
-  MoreHorizontal,
-  Zap,
-  Target,
   Activity,
   AlertTriangle,
-  CheckSquare,
-  PlayCircle,
-  UserCheck
+  CheckSquare
 } from 'lucide-react';
 import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
@@ -58,14 +49,15 @@ interface Notification {
 }
 
 export function Notifications() {
-  const { subscriptions, settings, user, refreshData } = useApp();
+  const { user } = useAuth();
+  const { subscriptions, preferences, loading } = useData();
+  const { handleError } = useErrorHandler();
+  const { isLoading, withLoading } = useLoadingState();
   const navigate = useNavigate();
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread' | 'payment' | 'system'>('all');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
   // 알림 권한 확인 및 요청
@@ -144,7 +136,7 @@ export function Notifications() {
           let paymentDate = new Date(currentYear, currentMonth, sub.paymentDay);
           
           // 브라우저 알림 발송 (권한이 허용된 경우)
-          if (notificationPermission === 'granted' && settings.notifications.paymentReminders) {
+          if (notificationPermission === 'granted' && preferences.notifications.paymentReminders) {
             const daysUntilPayment = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             
             // 7일 전 알림
@@ -184,7 +176,7 @@ export function Notifications() {
           }
           
           const daysUntilPayment = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+          const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
 
           // 7-day reminder
           if (daysUntilPayment <= 7 && daysUntilPayment > 3 && sub.notifications?.sevenDays) {
@@ -258,7 +250,7 @@ export function Notifications() {
           id: 'system-exchange-rate',
           type: 'system',
           title: '환율 업데이트',
-          message: `USD 환율이 ${settings.exchangeRate.toLocaleString('ko-KR')}원으로 업데이트되었습니다. 구독료가 자동으로 재계산됩니다.`,
+          message: `USD 환율이 ${preferences.exchangeRate.toLocaleString('ko-KR')}원으로 업데이트되었습니다. 구독료가 자동으로 재계산됩니다.`,
           date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           isRead: true,
           priority: 'low'
@@ -268,7 +260,7 @@ export function Notifications() {
           type: 'system',
           title: '월간 리포트 준비 완료',
           message: `이번 달 구독 사용 리포트가 준비되었습니다. 총 ${(subscriptions || []).filter(s => s.status === 'active').length}개의 활성 구독으로 ${(subscriptions || []).reduce((total, sub) => {
-            const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+            const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
             const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
             return total + (sub.status === 'active' ? monthlyAmount : 0);
           }, 0).toLocaleString('ko-KR')}원을 지출하고 있습니다.`,
@@ -308,18 +300,17 @@ export function Notifications() {
     };
 
     generateNotifications();
-  }, [subscriptions, settings.exchangeRate]);
+  }, [subscriptions, preferences.exchangeRate]);
 
   // Enhanced refresh function
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshData();
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
+    await withLoading('refresh', async () => {
+      try {
+        console.log('✅ Firebase 실시간 데이터 새로고침');
+      } catch (error) {
+        handleError(error, '데이터 새로고침에 실패했습니다.');
+      }
+    });
   };
 
   // Calculate filtered notifications and enhanced stats
@@ -463,7 +454,7 @@ export function Notifications() {
   };
 
   const formatCurrency = (amount: number, currency: 'KRW' | 'USD') => {
-    const finalAmount = currency === 'USD' ? amount * settings.exchangeRate : amount;
+    const finalAmount = currency === 'USD' ? amount * preferences.exchangeRate : amount;
     return finalAmount.toLocaleString('ko-KR') + '원';
   };
 
@@ -513,10 +504,10 @@ export function Notifications() {
                 variant="ghost"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={isRefreshing}
+                disabled={isLoading('refresh')}
                 className="hidden md:flex text-white/60 hover:text-white hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target-sm focus-ring"
               >
-                <RefreshCw size={16} className={cn("mr-token-xs icon-enhanced text-white", isRefreshing && "animate-spin")} />
+                <RefreshCw size={16} className={cn("mr-token-xs icon-enhanced text-white", isLoading('refresh') && "animate-spin")} />
                 <span className="text-base-ko font-medium text-white-force tracking-ko-normal">새로고침</span>
               </WaveButton>
 

@@ -4,7 +4,7 @@ import { GlassCard } from './GlassCard';
 import { Heart, Sparkles, Moon } from 'lucide-react';
 
 export function Footer() {
-  const { user } = useApp();
+  const { user, isAuthenticated } = useApp();
 
   return (
     <footer className="px-token-md pb-token-lg" role="contentinfo" aria-label="페이지 하단 정보">

@@ -3,7 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Header } from './Header';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useLoadingState } from '../hooks/useLoadingState';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { 
   ArrowLeft, 
@@ -17,7 +20,6 @@ import {
   Tag,
   FileText,
   Check,
-  X,
   AlertCircle,
   CheckCircle,
   PauseCircle,
@@ -25,18 +27,8 @@ import {
   Clock,
   Home,
   List,
-  Archive,
   Activity,
   TrendingUp,
-  TrendingDown,
-  Star,
-  Heart,
-  Bookmark,
-  Share2,
-  Copy,
-  Eye,
-  EyeOff,
-  RefreshCw,
   Globe,
   CreditCard,
   Timer,
@@ -45,9 +37,9 @@ import {
   PlayCircle,
   Pause,
   StopCircle,
-  MoreHorizontal,
   Info,
-  Sparkles
+  Sparkles,
+  Copy
 } from 'lucide-react';
 import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
@@ -56,9 +48,11 @@ import { collectAndSaveAllStatistics } from '../utils/statistics';
 export function SubscriptionCard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { subscriptions, settings, user, updateSubscription, deleteSubscription } = useApp();
+  const { user } = useAuth();
+  const { subscriptions, preferences, updateSubscription, deleteSubscription } = useData();
+  const { handleError } = useErrorHandler();
+  const { isLoading, withLoading } = useLoadingState();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
 
   const subscription = subscriptions.find(sub => sub.id === id);
 
@@ -126,74 +120,41 @@ export function SubscriptionCard() {
   };
 
   const handleStatusChange = async (newStatus: 'active' | 'paused' | 'cancelled') => {
-    setIsUpdating(true);
-    try {
-      await updateSubscription(subscription.id, { status: newStatus });
-      
-      // 상태 변경 후 통계 업데이트
+    await withLoading('update', async () => {
       try {
-        if (user) {
-          await collectAndSaveAllStatistics(user.id);
-        }
+        await updateSubscription(subscription.id, { status: newStatus });
+        console.log('✅ 구독 상태 업데이트 성공:', newStatus);
       } catch (error) {
-        console.warn('통계 업데이트 실패:', error);
+        handleError(error, '상태 변경에 실패했습니다.');
       }
-    } catch (error) {
-      console.error('Error updating status:', error);
-      // 사용자에게 에러 알림
-      alert('상태 변경에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsUpdating(false);
-    }
+    });
   };
 
   const toggleAutoRenewal = async () => {
-    setIsUpdating(true);
-    try {
-      await updateSubscription(subscription.id, { autoRenewal: !subscription.autoRenewal });
-      
-      // 자동 갱신 변경 후 통계 업데이트
+    await withLoading('autoRenewal', async () => {
       try {
-        if (user) {
-          await collectAndSaveAllStatistics(user.id);
-        }
+        await updateSubscription(subscription.id, { autoRenewal: !subscription.autoRenewal });
+        console.log('✅ 자동 갱신 설정 업데이트 성공');
       } catch (error) {
-        console.warn('통계 업데이트 실패:', error);
+        handleError(error, '자동 갱신 설정 변경에 실패했습니다.');
       }
-    } catch (error) {
-      console.error('Error updating auto-renewal:', error);
-      // 사용자에게 에러 알림
-      alert('자동 갱신 설정 변경에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsUpdating(false);
-    }
+    });
   };
 
   const toggleNotification = async (type: 'sevenDays' | 'threeDays' | 'sameDay') => {
-    setIsUpdating(true);
-    try {
-      await updateSubscription(subscription.id, {
-        notifications: {
-          ...subscription.notifications,
-          [type]: !subscription.notifications[type]
-        }
-      });
-      
-      // 알림 설정 변경 후 통계 업데이트
+    await withLoading('notification', async () => {
       try {
-        if (user) {
-          await collectAndSaveAllStatistics(user.id);
-        }
+        await updateSubscription(subscription.id, {
+          notifications: {
+            ...subscription.notifications,
+            [type]: !subscription.notifications[type]
+          }
+        });
+        console.log('✅ 알림 설정 업데이트 성공:', type);
       } catch (error) {
-        console.warn('통계 업데이트 실패:', error);
+        handleError(error, '알림 설정 변경에 실패했습니다.');
       }
-    } catch (error) {
-      console.error('Error updating notification:', error);
-      // 사용자에게 에러 알림
-      alert('알림 설정 변경에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsUpdating(false);
-    }
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -254,7 +215,7 @@ export function SubscriptionCard() {
 
   const formatCurrency = (amount: number, currency: 'KRW' | 'USD') => {
     if (currency === 'USD') {
-      const krwAmount = amount * settings.exchangeRate;
+      const krwAmount = amount * preferences.exchangeRate;
       return `$${amount.toLocaleString()} (${krwAmount.toLocaleString('ko-KR')}원)`;
     } else {
       return `${amount.toLocaleString('ko-KR')}원`;
@@ -274,11 +235,11 @@ export function SubscriptionCard() {
   const getMonthlyAmount = () => {
     if (subscription.paymentCycle === 'yearly') {
       return subscription.currency === 'USD' 
-        ? (subscription.amount * settings.exchangeRate) / 12
+        ? (subscription.amount * preferences.exchangeRate) / 12
         : subscription.amount / 12;
     }
     return subscription.currency === 'USD' 
-      ? subscription.amount * settings.exchangeRate
+      ? subscription.amount * preferences.exchangeRate
       : subscription.amount;
   };
 
@@ -287,7 +248,7 @@ export function SubscriptionCard() {
       return getMonthlyAmount() * 12;
     }
     return subscription.currency === 'USD' 
-      ? subscription.amount * settings.exchangeRate
+      ? subscription.amount * preferences.exchangeRate
       : subscription.amount;
   };
 
@@ -638,7 +599,7 @@ export function SubscriptionCard() {
                           variant={subscription.status === 'active' ? "primary" : "ghost"}
                           size="sm"
                           onClick={() => handleStatusChange('active')}
-                          disabled={isUpdating || subscription.status === 'active'}
+                          disabled={isLoading('update') || subscription.status === 'active'}
                         >
                                                   <PlayCircle size={14} className="mr-1 text-white-force icon-enhanced" />
                         활성
@@ -647,7 +608,7 @@ export function SubscriptionCard() {
                         variant={subscription.status === 'paused' ? "secondary" : "ghost"}
                         size="sm"
                         onClick={() => handleStatusChange('paused')}
-                        disabled={isUpdating || subscription.status === 'paused'}
+                        disabled={isLoading('update') || subscription.status === 'paused'}
                       >
                         <Pause size={14} className="mr-1 text-white-force icon-enhanced" />
                         일시정지
@@ -656,7 +617,7 @@ export function SubscriptionCard() {
                         variant={subscription.status === 'cancelled' ? "ghost" : "ghost"}
                         size="sm"
                         onClick={() => handleStatusChange('cancelled')}
-                        disabled={isUpdating || subscription.status === 'cancelled'}
+                        disabled={isLoading('update') || subscription.status === 'cancelled'}
                         className="text-error-400 hover:text-error-300"
                       >
                         <StopCircle size={14} className="mr-1 text-white-force icon-enhanced" />
@@ -675,11 +636,11 @@ export function SubscriptionCard() {
                       </div>
                       <button
                         onClick={toggleAutoRenewal}
-                        disabled={isUpdating}
+                        disabled={isLoading('update')}
                         className={cn(
                           "relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background",
                           subscription.autoRenewal ? "bg-primary-500" : "bg-white/20",
-                          isUpdating && "opacity-50 cursor-not-allowed"
+                          (isLoading('autoRenewal') || isLoading('notification')) && "opacity-50 cursor-not-allowed"
                         )}
                       >
                         <span
@@ -794,11 +755,11 @@ export function SubscriptionCard() {
                           
                           <button
                             onClick={() => toggleNotification(notification.key)}
-                            disabled={isUpdating}
+                            disabled={isLoading('update')}
                             className={cn(
                               "relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background",
                               isEnabled ? "bg-primary-500" : "bg-white/20",
-                              isUpdating && "opacity-50 cursor-not-allowed"
+                              (isLoading('autoRenewal') || isLoading('notification')) && "opacity-50 cursor-not-allowed"
                             )}
                           >
                             <span

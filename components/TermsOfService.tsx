@@ -1,12 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Header } from './Header';
-import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
-import { ArrowLeft, FileText, Shield, User, Lock, Mail, AlertTriangle } from 'lucide-react';
-import { useApp } from '../App';
+import { ArrowLeft, FileText, Shield, User, Lock, AlertTriangle, Mail } from 'lucide-react';
 
 export function TermsOfService() {
-  const { user } = useApp();
 
   return (
     <div className="min-h-screen bg-background">

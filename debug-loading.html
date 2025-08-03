@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moonwave 로딩 디버그</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        
+        .status {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        
+        .status-item {
+            text-align: center;
+        }
+        
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌊 Moonwave 로딩 상태 디버그</h1>
+        
+        <div class="status">
+            <div class="status-item">
+                <div class="status-value" id="auth-status">❓</div>
+                <div class="status-label">인증 상태</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="loading-status">❓</div>
+                <div class="status-label">로딩 상태</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="data-status">❓</div>
+                <div class="status-label">데이터 상태</div>
+            </div>
+        </div>
+        
+        <input type="email" id="email-input" placeholder="이메일 주소 입력" style="width: 300px; padding: 10px; margin: 10px; border-radius: 5px; border: none; color: black;">
+        <br>
+        <button onclick="checkAuthStatus()">인증 상태 확인</button>
+        <button onclick="quickLogin()">기존 계정 빠른 로그인</button>
+        <button onclick="sendMagicLink()">Magic Link 전송</button>
+        <button onclick="manualAuth()">수동 인증 (코드 입력)</button>
+        <hr style="margin: 20px 0; border: 1px solid rgba(255,255,255,0.2);">
+        <h3>🧪 구독 관리 테스트 (인증 없이)</h3>
+        <button onclick="testCreateSubscription()">구독 생성 테스트</button>
+        <button onclick="testGetSubscriptions()">구독 조회 테스트</button>
+        <button onclick="testFullCRUD()">전체 CRUD 테스트</button>
+        <button onclick="bypassRLS()">RLS 우회 테스트</button>
+        <hr style="margin: 20px 0; border: 1px solid rgba(255,255,255,0.2);">
+        <button onclick="checkDataLoading()">데이터 로딩 확인</button>
+        <button onclick="testApiCall()">API 호출 테스트</button>
+        <button onclick="clearLog()">로그 지우기</button>
+        
+        <div id="log" class="log"></div>
+    </div>
+
+    <script type="module">
+        // Supabase 클라이언트 초기화
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js@2';
+        
+        const SUPABASE_URL = 'https://bfurhjgnnjgfcafdrotk.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdXJoamdubmpnZmNhZmRyb3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2MDQ4NTIsImV4cCI6MjA2OTE4MDg1Mn0.mxP7V92XRdY8e_7r9GR3B04blukhVf1vu_teRguv20U';
+        
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(elementId, value, color) {
+            const element = document.getElementById(elementId);
+            element.textContent = value;
+            element.style.color = color;
+        }
+        
+        // 인증 상태 확인
+        window.checkAuthStatus = async function() {
+            log('🔐 인증 상태 확인 중...');
+            
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    log(`❌ 세션 오류: ${error.message}`);
+                    updateStatus('auth-status', '❌', '#FF6B6B');
+                    return;
+                }
+                
+                if (session && session.user) {
+                    log(`✅ 인증됨: ${session.user.email}`);
+                    log(`🆔 사용자 ID: ${session.user.id}`);
+                    log(`⏰ 로그인 시간: ${new Date(session.user.last_sign_in_at).toLocaleString()}`);
+                    updateStatus('auth-status', '✅', '#4ECDC4');
+                    
+                    // 자동으로 데이터 로딩 테스트
+                    setTimeout(() => checkDataLoading(), 1000);
+                } else {
+                    log('❌ 인증되지 않은 상태');
+                    updateStatus('auth-status', '❌', '#FF6B6B');
+                }
+            } catch (error) {
+                log(`💥 인증 확인 실패: ${error.message}`);
+                updateStatus('auth-status', '💥', '#FF6B6B');
+            }
+        };
+        
+        // 데이터 로딩 확인
+        window.checkDataLoading = async function() {
+            log('📊 데이터 로딩 상태 확인 중...');
+            updateStatus('loading-status', '🔄', '#FFA500');
+            
+            try {
+                // 구독 데이터 로딩
+                log('📋 구독 목록 로딩...');
+                const { data: subscriptions, error: subError } = await supabase
+                    .from('subscriptions')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (subError) {
+                    log(`❌ 구독 로딩 실패: ${subError.message}`);
+                    updateStatus('data-status', '❌', '#FF6B6B');
+                    return;
+                }
+                
+                log(`✅ 구독 ${subscriptions.length}개 로딩 완료`);
+                
+                // 사용자 설정 로딩
+                log('⚙️ 사용자 설정 로딩...');
+                const { data: preferences, error: prefError } = await supabase
+                    .from('user_preferences')
+                    .select('*')
+                    .single();
+                
+                if (prefError && prefError.code !== 'PGRST116') {
+                    log(`❌ 설정 로딩 실패: ${prefError.message}`);
+                } else {
+                    log('✅ 사용자 설정 로딩 완료');
+                }
+                
+                // 알림 로딩
+                log('🔔 알림 로딩...');
+                const { data: notifications, error: notifError } = await supabase
+                    .from('notifications')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (notifError) {
+                    log(`❌ 알림 로딩 실패: ${notifError.message}`);
+                } else {
+                    log(`✅ 알림 ${notifications.length}개 로딩 완료`);
+                }
+                
+                updateStatus('loading-status', '✅', '#4ECDC4');
+                updateStatus('data-status', `${subscriptions.length}개`, '#4ECDC4');
+                
+                log('🎉 모든 데이터 로딩 완료!');
+                
+            } catch (error) {
+                log(`💥 데이터 로딩 실패: ${error.message}`);
+                updateStatus('loading-status', '💥', '#FF6B6B');
+                updateStatus('data-status', '💥', '#FF6B6B');
+            }
+        };
+        
+        // 기존 계정 빠른 로그인
+        window.quickLogin = async function() {
+            const email = document.getElementById('email-input').value || 'her_soul@naver.com';
+            
+            log(`🚀 기존 계정으로 빠른 로그인 시도: ${email}`);
+            log('💡 이미 등록된 계정이므로 Magic Link만 전송합니다.');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithOtp({
+                    email: email,
+                    options: {
+                        shouldCreateUser: false // 기존 사용자만
+                    }
+                });
+                
+                if (error) {
+                    if (error.message.includes('User not found')) {
+                        log('❌ 등록되지 않은 이메일입니다.');
+                        log('💡 her_soul@naver.com 계정을 사용해보세요.');
+                    } else {
+                        throw error;
+                    }
+                    return;
+                }
+                
+                log('✅ Magic Link 전송 성공!');
+                log('📧 이메일을 확인하세요. (실제 이메일이 아니면 무시하고 다른 방법 사용)');
+                log('');
+                log('🎯 대안: 아래 "전체 CRUD 테스트" 버튼으로 인증 없이 테스트하세요!');
+                
+            } catch (error) {
+                log(`💥 빠른 로그인 실패: ${error.message}`);
+                log('🎯 인증 없이 "전체 CRUD 테스트"를 시도해보세요!');
+            }
+        };
+        
+        // 수동 인증 (Magic Link 토큰으로)
+        window.manualAuth = async function() {
+            const input = prompt('Magic Link에서 토큰을 입력하세요:\n\nOAuth 코드 (예: f5353283-45d4-4058-8293-04b7aeed722d)\n또는\nMagic Link 토큰 (예: a01e6c19751e2164e9d6f4daf2456b104ff36c87cb6bda4aa1e0a5d5)');
+            
+            if (!input) {
+                log('❌ 토큰을 입력해주세요.');
+                return;
+            }
+            
+            log(`🔐 수동 인증 시도 중... (토큰: ${input.substring(0, 8)}...)`);
+            
+            try {
+                // OAuth 코드인지 Magic Link 토큰인지 판별
+                if (input.includes('-') && input.length > 30) {
+                    // OAuth 코드로 판단
+                    log('🔍 OAuth 코드로 인식됨');
+                    const { data, error } = await supabase.auth.exchangeCodeForSession(input);
+                    
+                    if (error) throw error;
+                    
+                    if (data.session && data.session.user) {
+                        log('✅ OAuth 인증 성공!');
+                        log(`👤 사용자: ${data.session.user.email}`);
+                        log(`🆔 ID: ${data.session.user.id}`);
+                        updateStatus('auth-status', '✅', '#4ECDC4');
+                        setTimeout(() => checkDataLoading(), 1000);
+                    }
+                } else {
+                    // Magic Link 토큰으로 판단
+                    log('🔍 Magic Link 토큰으로 인식됨');
+                    
+                    // Magic Link 토큰을 직접 검증
+                    const response = await fetch(`https://bfurhjgnnjgfcafdrotk.supabase.co/auth/v1/verify`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdXJoamdubmpnZmNhZmRyb3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2MDQ4NTIsImV4cCI6MjA2OTE4MDg1Mn0.mxP7V92XRdY8e_7r9GR3B04blukhVf1vu_teRguv20U'
+                        },
+                        body: JSON.stringify({
+                            token: input,
+                            type: 'magiclink'
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Magic Link 검증 실패: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    log('✅ Magic Link 검증 성공!');
+                    log('🔄 세션 새로고침 중...');
+                    
+                    // 세션 새로고침
+                    const { data: session } = await supabase.auth.refreshSession();
+                    if (session.session) {
+                        log('✅ 세션 새로고침 성공!');
+                        updateStatus('auth-status', '✅', '#4ECDC4');
+                        setTimeout(() => checkDataLoading(), 1000);
+                    }
+                }
+                
+            } catch (error) {
+                log(`💥 수동 인증 오류: ${error.message}`);
+                log('💡 다른 방법을 시도해보세요:');
+                log('1. Google OAuth 로그인');
+                log('2. 새로운 Magic Link 요청');
+                log('3. 인증 없이 API 테스트');
+            }
+        };
+        
+        // Magic Link 전송
+        window.sendMagicLink = async function() {
+            const email = document.getElementById('email-input').value;
+            if (!email) {
+                log('❌ 이메일을 입력해주세요.');
+                return;
+            }
+            
+            log(`📧 Magic Link 전송 중... (${email})`);
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithOtp({
+                    email: email,
+                    options: {
+                        emailRedirectTo: 'http://localhost:3003/auth/callback'
+                    }
+                });
+                
+                if (error) {
+                    log(`❌ Magic Link 전송 실패: ${error.message}`);
+                    return;
+                }
+                
+                log('✅ Magic Link 전송 성공!');
+                log('📬 이메일을 확인하고 링크를 클릭하세요.');
+                log('🔄 링크 클릭 후 이 페이지에서 "인증 상태 확인"을 다시 눌러보세요.');
+                
+            } catch (error) {
+                log(`💥 Magic Link 전송 실패: ${error.message}`);
+            }
+        };
+        
+        // API 호출 테스트
+        window.testApiCall = async function() {
+            log('🧪 API 호출 테스트...');
+            
+            try {
+                // 연결 테스트
+                const { data, error } = await supabase
+                    .from('subscriptions')
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    log(`❌ API 호출 실패: ${error.message}`);
+                    return;
+                }
+                
+                log('✅ API 호출 성공');
+                
+                // RLS 정책 테스트
+                const { data: testData, error: testError } = await supabase
+                    .from('subscriptions')
+                    .select('*')
+                    .limit(1);
+                
+                if (testError) {
+                    log(`⚠️ RLS 정책 차단: ${testError.message}`);
+                    log('💡 이는 정상적인 보안 동작입니다.');
+                } else {
+                    log('✅ 데이터 접근 허용됨');
+                }
+                
+            } catch (error) {
+                log(`💥 API 테스트 실패: ${error.message}`);
+            }
+        };
+        
+        // 구독 생성 테스트
+        window.testCreateSubscription = async function() {
+            log('📋 구독 생성 테스트 시작...');
+            
+            const testSub = {
+                service_name: 'Netflix 테스트',
+                service_url: 'https://netflix.com',
+                logo: '🎬',
+                amount: 15900,
+                currency: 'KRW',
+                payment_cycle: 'monthly',
+                payment_day: 15,
+                payment_method: '신용카드',
+                start_date: '2024-01-15',
+                auto_renewal: true,
+                status: 'active',
+                category: '엔터테인먼트',
+                tier: 'Premium',
+                tags: ['동영상', '스트리밍'],
+                memo: '디버그 도구에서 생성한 테스트 구독',
+                notifications: { sevenDays: true, threeDays: true, sameDay: true }
+            };
+            
+            try {
+                const { data, error } = await supabase
+                    .from('subscriptions')
+                    .insert(testSub)
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                log(`✅ 구독 생성 성공!`);
+                log(`🆔 ID: ${data.id}`);
+                log(`🎬 서비스: ${data.service_name}`);
+                log(`💰 금액: ${data.amount.toLocaleString()}원/월`);
+                log(`📅 결제일: 매월 ${data.payment_day}일`);
+                
+                return data.id;
+            } catch (error) {
+                log(`❌ 구독 생성 실패: ${error.message}`);
+                return null;
+            }
+        };
+        
+        // 구독 조회 테스트
+        window.testGetSubscriptions = async function() {
+            log('📊 구독 목록 조회 테스트...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('subscriptions')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) throw error;
+                
+                log(`✅ 구독 조회 성공! (${data.length}개)`);
+                
+                if (data.length > 0) {
+                    log('\n📋 구독 목록:');
+                    data.forEach((sub, index) => {
+                        log(`  ${index + 1}. ${sub.service_name}`);
+                        log(`     💰 ${sub.amount.toLocaleString()}${sub.currency} (${sub.payment_cycle})`);
+                        log(`     📅 매월 ${sub.payment_day}일`);
+                        log(`     🔖 ${sub.category} | ${sub.status}`);
+                        log(`     🆔 ${sub.id}`);
+                        log('');
+                    });
+                } else {
+                    log('📝 등록된 구독이 없습니다.');
+                }
+                
+                return data;
+            } catch (error) {
+                log(`❌ 구독 조회 실패: ${error.message}`);
+                return [];
+            }
+        };
+        
+        // 전체 CRUD 테스트
+        window.testFullCRUD = async function() {
+            log('🚀 전체 구독 관리 CRUD 테스트 시작!');
+            log('='.repeat(40));
+            
+            let createdId = null;
+            
+            try {
+                // 1. Create (생성)
+                log('\n1️⃣ 구독 생성...');
+                createdId = await testCreateSubscription();
+                
+                if (!createdId) {
+                    log('❌ 생성 실패로 테스트 중단');
+                    return;
+                }
+                
+                // 2. Read (조회)
+                log('\n2️⃣ 구독 조회...');
+                const subscriptions = await testGetSubscriptions();
+                
+                // 3. Update (수정)
+                log('\n3️⃣ 구독 수정...');
+                const updateData = {
+                    amount: 17900,
+                    tier: 'Premium Plus',
+                    memo: '수정된 테스트 구독 - ' + new Date().toLocaleString()
+                };
+                
+                const { data: updated, error: updateError } = await supabase
+                    .from('subscriptions')
+                    .update(updateData)
+                    .eq('id', createdId)
+                    .select()
+                    .single();
+                
+                if (updateError) throw updateError;
+                
+                log('✅ 구독 수정 성공!');
+                log(`💰 수정된 금액: ${updated.amount.toLocaleString()}원`);
+                log(`🏷️ 수정된 티어: ${updated.tier}`);
+                
+                // 4. Delete (삭제)
+                log('\n4️⃣ 구독 삭제...');
+                const { error: deleteError } = await supabase
+                    .from('subscriptions')
+                    .delete()
+                    .eq('id', createdId);
+                
+                if (deleteError) throw deleteError;
+                
+                log('✅ 구독 삭제 성공!');
+                log(`🗑️ 삭제된 ID: ${createdId}`);
+                
+                // 5. 최종 확인
+                log('\n5️⃣ 삭제 확인...');
+                const { data: checkData } = await supabase
+                    .from('subscriptions')
+                    .select('*')
+                    .eq('id', createdId);
+                
+                if (!checkData || checkData.length === 0) {
+                    log('✅ 삭제 확인됨!');
+                } else {
+                    log('⚠️ 삭제가 완전하지 않음');
+                }
+                
+                log('\n🎉 전체 CRUD 테스트 완료!');
+                log('📊 테스트 결과:');
+                log('✅ 생성 (Create): 성공');
+                log('✅ 조회 (Read): 성공');
+                log('✅ 수정 (Update): 성공');
+                log('✅ 삭제 (Delete): 성공');
+                log('\n🚀 구독 관리 시스템이 완벽하게 작동합니다!');
+                
+            } catch (error) {
+                log(`💥 CRUD 테스트 실패: ${error.message}`);
+                
+                // 정리
+                if (createdId) {
+                    try {
+                        await supabase.from('subscriptions').delete().eq('id', createdId);
+                        log('🧹 테스트 데이터 정리 완료');
+                    } catch (cleanupError) {
+                        log('⚠️ 테스트 데이터 정리 실패');
+                    }
+                }
+            }
+        };
+        
+        // RLS 우회 테스트 (Service Role 키 사용)
+        window.bypassRLS = async function() {
+            log('🔓 RLS 우회 테스트 시작...');
+            log('⚠️ 이것은 개발/테스트 목적만을 위한 기능입니다.');
+            
+            try {
+                // Service Role 키로 새 클라이언트 생성
+                const serviceClient = createClient(
+                    'https://bfurhjgnnjgfcafdrotk.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdXJoamdubmpnZmNhZmRyb3RrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzYwNDg1MiwiZXhwIjoyMDY5MTgwODUyfQ.zzDATOqoatQYPjpCTv8RezLqHmYldBrX2NrZ5ZA9wpA'
+                );
+                
+                log('🔑 Service Role 키로 관리자 권한 테스트...');
+                
+                // 먼저 실제 사용자 찾기
+                log('👤 실제 사용자 ID 조회 중...');
+                const { data: users, error: userError } = await serviceClient.auth.admin.listUsers();
+                
+                let userId = null;
+                if (userError) {
+                    log('⚠️ 사용자 목록 조회 실패, 임시 UUID 사용');
+                    userId = crypto.randomUUID(); // 랜덤 UUID 생성
+                } else if (users.users && users.users.length > 0) {
+                    userId = users.users[0].id;
+                    log(`✅ 실제 사용자 ID 사용: ${userId}`);
+                } else {
+                    userId = crypto.randomUUID();
+                    log('⚠️ 등록된 사용자 없음, 랜덤 UUID 생성');
+                }
+                
+                const testSub = {
+                    service_name: 'RLS 우회 테스트',
+                    service_url: 'https://test.com',
+                    logo: '🧪',
+                    amount: 9900,
+                    currency: 'KRW',
+                    payment_cycle: 'monthly',
+                    payment_day: 1,
+                    payment_method: '테스트',
+                    start_date: '2024-01-01',
+                    auto_renewal: true,
+                    status: 'active',
+                    category: '테스트',
+                    tier: 'Test',
+                    tags: ['테스트'],
+                    memo: 'RLS 우회 테스트용 데이터',
+                    notifications: { sevenDays: true, threeDays: true, sameDay: true },
+                    user_id: userId
+                };
+                
+                // 생성 테스트
+                const { data: created, error: createError } = await serviceClient
+                    .from('subscriptions')
+                    .insert(testSub)
+                    .select()
+                    .single();
+                
+                if (createError) {
+                    log(`❌ RLS 우회 생성 실패: ${createError.message}`);
+                    return;
+                }
+                
+                log('✅ RLS 우회 생성 성공!');
+                log(`🆔 ID: ${created.id}`);
+                
+                // 조회 테스트
+                const { data: list, error: listError } = await serviceClient
+                    .from('subscriptions')
+                    .select('*')
+                    .eq('id', created.id);
+                
+                if (listError) {
+                    log(`❌ 조회 실패: ${listError.message}`);
+                } else {
+                    log('✅ 조회 성공!');
+                }
+                
+                // 삭제 (정리)
+                const { error: deleteError } = await serviceClient
+                    .from('subscriptions')
+                    .delete()
+                    .eq('id', created.id);
+                
+                if (deleteError) {
+                    log(`⚠️ 삭제 실패: ${deleteError.message}`);
+                } else {
+                    log('✅ 테스트 데이터 삭제 완료');
+                }
+                
+                log('🎉 RLS 우회 테스트 완료!');
+                log('💡 이것은 관리자 권한으로 RLS를 우회한 것입니다.');
+                log('🔒 실제 앱에서는 인증된 사용자만 데이터를 조작할 수 있습니다.');
+                
+            } catch (error) {
+                log(`💥 RLS 우회 테스트 실패: ${error.message}`);
+            }
+        };
+        
+        // 로그 지우기
+        window.clearLog = function() {
+            document.getElementById('log').innerHTML = '';
+        };
+        
+        // 페이지 로드 시 자동 확인
+        log('🌊 Moonwave 디버그 도구 시작');
+        log('🔍 자동으로 인증 상태를 확인합니다...');
+        checkAuthStatus();
+    </script>
+</body>
+</html>

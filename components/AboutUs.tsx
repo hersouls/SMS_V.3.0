@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
 import { WaveBackground } from './WaveBackground';
 import { AboutMoonwaveModal } from './AboutMoonwaveModal';
-import { useApp } from '../App';
 import {
   Heart,
   Brain,
@@ -28,10 +27,9 @@ import {
 import { cn } from './ui/utils';
 
 export function AboutUs() {
-  const { } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const services = [
+  const services = useMemo(() => [
     {
       name: 'Music Platform',
       url: 'music.moonwave.kr',
@@ -81,9 +79,9 @@ export function AboutUs() {
       icon: Crown,
       color: 'from-indigo-500 to-purple-500'
     }
-  ];
+  ], []);
 
-  const values = [
+  const values = useMemo(() => [
     {
       title: '자신만의 파동',
       description: '세상의 기준이 아닌, 각자의 고유함을 존중합니다',
@@ -108,9 +106,9 @@ export function AboutUs() {
       icon: Users,
       color: 'from-green-500 to-emerald-500'
     }
-  ];
+  ], []);
 
-  const technologies = [
+  const technologies = useMemo(() => [
     {
       category: 'AI가 만드는 공명',
       items: [
@@ -141,7 +139,7 @@ export function AboutUs() {
       icon: Crown,
       color: 'from-yellow-500 to-orange-500'
     }
-  ];
+  ], []);
 
   return (
     <div className="min-h-screen relative">
@@ -158,9 +156,11 @@ export function AboutUs() {
                 {/* Logo and Brand */}
                 <div className="flex items-center justify-center gap-token-sm">
                   <img 
-                    src="/music/moowave.png" 
+                    src="/Moonwave_2.png" 
                     alt="Moonwave Logo" 
                     className="w-16 h-16 object-cover"
+                    loading="lazy"
+                    fetchPriority="low"
                   />
                   <div>
                     <h1 className="text-white-force text-5xl-ko font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
@@ -269,13 +269,16 @@ export function AboutUs() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-token-lg">
               {values.map((value, index) => (
                 <GlassCard 
-                  key={value.title}
+                  key={value.title + '-' + index}
                   variant="light" 
                   className={cn(
                     "p-token-lg hover-card-subtle transition-smooth transform-gpu will-change-transform",
                     "fade-in-up"
                   )}
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  style={{ 
+                    animationDelay: `${index * 0.1}s`,
+                    contain: 'layout style paint'
+                  }}
                 >
                   <div className="space-y-token-md text-center">
                     <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mx-auto", `bg-gradient-to-r ${value.color}`)}>
@@ -305,13 +308,16 @@ export function AboutUs() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-token-lg">
               {services.map((service, index) => (
                 <GlassCard 
-                  key={service.name}
+                  key={service.name + '-' + index}
                   variant="light" 
                   className={cn(
                     "p-token-lg hover-card-subtle transition-smooth transform-gpu will-change-transform",
                     "fade-in-up"
                   )}
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  style={{ 
+                    animationDelay: `${index * 0.1}s`,
+                    contain: 'layout style paint'
+                  }}
                 >
                   <div className="space-y-token-md">
                     <div className="flex items-center justify-between">
@@ -346,13 +352,16 @@ export function AboutUs() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-token-lg">
               {technologies.map((tech, index) => (
                 <GlassCard 
-                  key={tech.category}
+                  key={tech.category + '-' + index}
                   variant="light" 
                   className={cn(
                     "p-token-lg hover-card-subtle transition-smooth transform-gpu will-change-transform",
                     "fade-in-up"
                   )}
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  style={{ 
+                    animationDelay: `${index * 0.1}s`,
+                    contain: 'layout style paint'
+                  }}
                 >
                   <div className="space-y-token-md">
                     <div className="flex items-center gap-token-sm">
@@ -363,7 +372,7 @@ export function AboutUs() {
                     </div>
                     <div className="space-y-token-sm">
                       {tech.items.map((item, itemIndex) => (
-                        <div key={itemIndex} className="p-token-sm bg-white/5 rounded-lg">
+                        <div key={item.name + '-' + itemIndex} className="p-token-sm bg-white/5 rounded-lg">
                           <p className="text-white-force text-sm-ko font-medium">{item.name}</p>
                           <p className="text-white-force text-xs-ko opacity-70 tracking-ko-normal">
                             {item.description}

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, Suspense } from 'react';
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Waves } from 'lucide-react';
 import { Toaster } from 'sonner';
@@ -6,6 +7,8 @@ import { Toaster } from 'sonner';
 // Lazy load components for better performance
 const Login = React.lazy(() => import('./components/Login').then(module => ({ default: module.Login })));
 const Signup = React.lazy(() => import('./components/Signup').then(module => ({ default: module.Signup })));
+const MagicLinkLogin = React.lazy(() => import('./components/MagicLinkLogin').then(module => ({ default: module.MagicLinkLogin })));
+const MagicLinkSignup = React.lazy(() => import('./components/MagicLinkSignup').then(module => ({ default: module.MagicLinkSignup })));
 const Dashboard = React.lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
 const AllSubscriptions = React.lazy(() => import('./components/AllSubscriptions').then(module => ({ default: module.AllSubscriptions })));
 const AddEditSubscription = React.lazy(() => import('./components/AddEditSubscription').then(module => ({ default: module.AddEditSubscription })));
@@ -16,10 +19,11 @@ const Notifications = React.lazy(() => import('./components/Notifications').then
 const PaymentCalendar = React.lazy(() => import('./components/PaymentCalendar').then(module => ({ default: module.PaymentCalendar })));
 const AboutUs = React.lazy(() => import('./components/AboutUs').then(module => ({ default: module.AboutUs })));
 const TermsOfService = React.lazy(() => import('./components/TermsOfService').then(module => ({ default: module.TermsOfService })));
+const FirebaseDebugger = React.lazy(() => import('./components/FirebaseDebugger').then(module => ({ default: module.default })));
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
-const RLSDebugger = React.lazy(() => import('./components/RLSDebugger').then(module => ({ default: module.RLSDebugger })));
-const DataLoadingDebugger = React.lazy(() => import('./components/DataLoadingDebugger').then(module => ({ default: module.DataLoadingDebugger })));
 const AuthCallback = React.lazy(() => import('./components/AuthCallback').then(module => ({ default: module.AuthCallback })));
+const SupabaseTestDashboard = React.lazy(() => import('./components/SupabaseTestDashboard').then(module => ({ default: module.SupabaseTestDashboard })));
+const MusicPlayer = React.lazy(() => import('./components/MusicPlayer').then(module => ({ default: module.MusicPlayer })));
 
 
 // Loading component
@@ -30,9 +34,23 @@ const LoadingSpinner = () => (
 );
 
 import { WaveBackground } from './components/WaveBackground';
-import { MusicPlayer } from './components/MusicPlayer';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
-import { supabase } from './utils/supabase/client';
+
+// Authenticated Music Player Component - 임시로 비활성화
+function AuthenticatedMusicPlayer() {
+  // const { isAuthenticated } = useApp();
+  
+  // if (!isAuthenticated) {
+  //   return null;
+  // }
+  
+  return null; // MusicPlayer 임시 비활성화
+}
+// Firebase client imports
+import { AuthProvider } from './contexts/AuthContext';
+import { DataProvider } from './contexts/DataContext';
+import { checkAuthStatus } from './utils/firebase/config';
+import { signInWithEmail, signInWithGoogle, signOutUser } from './utils/firebase/client';
 import { apiService } from './utils/api';
 import { getOAuthErrorMessage, checkOAuthStatus } from './utils/oauth';
 import { 
@@ -42,8 +60,9 @@ import {
 
 } from './utils/statistics';
 
-// Supabase 테스트 도구 (개발 모드에서만)
-import { runAllSupabaseTests } from './utils/supabase-manual-test';
+// Supabase 테스트 도구 (개발 모드에서만) - 사용되지 않으므로 주석 처리
+// Firebase auth and data hooks
+import { useFirebaseAuth } from './hooks/useFirebaseAuth';
 
 // Types
 export interface Subscription {
@@ -58,6 +77,7 @@ export interface Subscription {
   paymentDay: number;
   paymentMethod?: string;
   startDate: string;
+  endDate?: string;
   autoRenewal: boolean;
   status: 'active' | 'paused' | 'cancelled';
   category: string;
@@ -80,51 +100,92 @@ export interface User {
   name?: string;
 }
 
-export interface UserSettings {
+export interface UserPreferences {
+  id?: string;
+  userId?: string;
   exchangeRate: number;
+  defaultCurrency: 'KRW' | 'USD';
   notifications: {
     paymentReminders: boolean;
     priceChanges: boolean;
     subscriptionExpiry: boolean;
+    email: boolean;
+    push: boolean;
+    sms: boolean;
   };
+  theme: 'light' | 'dark' | 'auto';
+  language: 'ko' | 'en';
+  timezone: string;
+  dateFormat: string;
+  currencyFormat: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'payment' | 'renewal' | 'expiry' | 'system';
+  title: string;
+  message: string;
+  isRead: boolean;
+  priority: 'low' | 'medium' | 'high';
+  subscriptionId?: string;
+  category?: string;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  userId: string;
+  subscriptionId: string;
+  serviceName: string;
+  amount: number;
+  currency: 'KRW' | 'USD';
+  paymentDate: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  paymentMethod?: string;
+  paymentCycle?: 'monthly' | 'yearly' | 'onetime';
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Category {
+  id: string;
+  userId?: string;
+  name: string;
+  color: string;
+  icon?: string;
+  description?: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 간소화된 통계 타입
 export interface SubscriptionStats {
-  // 월간 통계
-  totalMonthly: number; // 1일부터 오늘까지 실제 지출한 금액
-  monthlyTotal: number; // 모든 활성 구독의 월간 총액
-  
-  // 연간 통계
-  yearlySpendingToDate: number; // 해당년도 1월 1일부터 오늘까지 지출한 합계
-  yearlyTotal: number; // 해당년도 1월 1일부터 12월 31일까지 지출할 합계
-  totalYearly: number; // 기존 연간 예상 (월간 총액 × 12)
-  
-  // 구독 상태 통계
-  activeCount: number;
-  pausedCount: number;
-  cancelledCount: number;
+  // 기본 통계
   totalSubscriptions: number;
+  activeSubscriptions: number;
+  pausedSubscriptions: number;
+  cancelledSubscriptions: number;
+  
+  // 금액 통계
+  totalMonthlyKrw: number;
+  avgSubscriptionCost: number;
   
   // 결제 예정 통계
   upcomingPayments: number; // 7일 이내 결제 예정
   todayCount: number; // 오늘 결제 예정
   weekCount: number; // 이번 주 결제 예정
   
-  // 금액 통계
-  todayTotal: number; // 오늘 결제 총액
-  weeklyTotal: number; // 이번 주 결제 총액
-  avgSubscriptionCost: number; // 평균 구독 비용
-  
-  // 트렌드 통계
-  monthlyTrend: number; // 전월 대비 증감률
-  
   // 카테고리별 통계
   categoryBreakdown: {
     [category: string]: {
       count: number;
       totalAmount: number;
-      monthlyAmount: number;
-      yearlyAmount: number;
     };
   };
   
@@ -141,71 +202,28 @@ export interface SubscriptionStats {
     USD: { count: number; totalAmount: number; };
   };
   
-  // 구독 등급별 통계
-  tierBreakdown: {
-    [tier: string]: {
-      count: number;
-      totalAmount: number;
-      avgAmount: number;
-    };
-  };
-  
   // 알림 설정 통계
   notificationStats: {
-    sevenDays: number; // 7일 전 알림 설정된 구독 수
-    threeDays: number; // 3일 전 알림 설정된 구독 수
-    sameDay: number; // 당일 알림 설정된 구독 수
-    totalWithNotifications: number; // 알림 설정된 총 구독 수
+    sevenDays: number;
+    threeDays: number;
+    sameDay: number;
+    totalWithNotifications: number;
   };
   
   // 자동 갱신 통계
   autoRenewalStats: {
-    enabled: number; // 자동 갱신 활성화된 구독 수
-    disabled: number; // 자동 갱신 비활성화된 구독 수
-    percentage: number; // 자동 갱신 비율
-  };
-  
-  // 태그별 통계
-  tagStats: {
-    [tag: string]: {
-      count: number;
-      totalAmount: number;
-    };
-  };
-  
-  // 구독 시작일별 통계 (최근 12개월)
-  startDateBreakdown: {
-    [month: string]: {
-      count: number;
-      totalAmount: number;
-    };
-  };
-  
-  // 결제일별 통계
-  paymentDayBreakdown: {
-    [day: number]: {
-      count: number;
-      totalAmount: number;
-    };
-  };
-  
-  // 인사이트 통계
-  insights: {
-    mostExpensiveCategory: string; // 가장 비싼 카테고리
-    cheapestCategory: string; // 가장 저렴한 카테고리
-    mostPopularCategory: string; // 가장 인기 있는 카테고리
-    averageMonthlySpending: number; // 평균 월 지출
-    totalSavingsFromYearly: number; // 연간 구독으로 인한 총 절약액
-    projectedYearlySpending: number; // 예상 연간 지출
-    spendingGrowthRate: number; // 지출 증가율
-    subscriptionEfficiency: number; // 구독 효율성 (활성 구독 대비 총 지출)
+    enabled: number;
+    disabled: number;
+    percentage: number;
   };
 }
 
 interface AppContextType {
   user: User | null;
   subscriptions: Subscription[];
-  settings: UserSettings;
+  preferences: UserPreferences;
+  notifications: Notification[];
+  categories: Category[];
   isAuthenticated: boolean;
   isLoading: boolean;
   stats: SubscriptionStats;
@@ -216,7 +234,7 @@ interface AppContextType {
   addSubscription: (subscription: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateSubscription: (id: string, subscription: Partial<Subscription>) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
-  updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
+  updatePreferences: (preferences: Partial<UserPreferences>) => Promise<void>;
   refreshData: () => Promise<void>;
   calculateStats: () => SubscriptionStats;
 }
@@ -226,7 +244,106 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 export const useApp = () => {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error('useApp must be used within AppProvider');
+    console.warn('useApp이 AppProvider 외부에서 호출되었습니다.');
+    // 기본값을 반환하여 에러를 방지
+    return {
+      user: null,
+      subscriptions: [],
+      preferences: {
+        exchangeRate: 1300,
+        defaultCurrency: 'KRW',
+        notifications: {
+          paymentReminders: true,
+          priceChanges: false,
+          subscriptionExpiry: true,
+          email: true,
+          push: true,
+          sms: false,
+        },
+        theme: 'auto',
+        language: 'ko',
+        timezone: 'Asia/Seoul',
+        dateFormat: 'YYYY-MM-DD',
+        currencyFormat: 'KRW',
+      },
+      notifications: [],
+      categories: [],
+      isAuthenticated: false,
+      isLoading: true,
+      stats: {
+        totalSubscriptions: 0,
+        activeSubscriptions: 0,
+        pausedSubscriptions: 0,
+        cancelledSubscriptions: 0,
+        totalMonthlyKrw: 0,
+        avgSubscriptionCost: 0,
+        upcomingPayments: 0,
+        todayCount: 0,
+        weekCount: 0,
+        categoryBreakdown: {},
+        paymentCycleBreakdown: {
+          monthly: { count: 0, totalAmount: 0 },
+          yearly: { count: 0, totalAmount: 0 },
+          onetime: { count: 0, totalAmount: 0 }
+        },
+        currencyBreakdown: {
+          KRW: { count: 0, totalAmount: 0 },
+          USD: { count: 0, totalAmount: 0 }
+        },
+        notificationStats: {
+          sevenDays: 0,
+          threeDays: 0,
+          sameDay: 0,
+          totalWithNotifications: 0
+        },
+        autoRenewalStats: {
+          enabled: 0,
+          disabled: 0,
+          percentage: 0
+        }
+      },
+      login: async () => {},
+      loginWithGoogle: async () => {},
+      signup: async () => {},
+      logout: async () => {},
+      addSubscription: async () => {},
+      updateSubscription: async () => {},
+      deleteSubscription: async () => {},
+      updatePreferences: async () => {},
+      refreshData: async () => {},
+      calculateStats: () => ({
+        totalSubscriptions: 0,
+        activeSubscriptions: 0,
+        pausedSubscriptions: 0,
+        cancelledSubscriptions: 0,
+        totalMonthlyKrw: 0,
+        avgSubscriptionCost: 0,
+        upcomingPayments: 0,
+        todayCount: 0,
+        weekCount: 0,
+        categoryBreakdown: {},
+        paymentCycleBreakdown: {
+          monthly: { count: 0, totalAmount: 0 },
+          yearly: { count: 0, totalAmount: 0 },
+          onetime: { count: 0, totalAmount: 0 }
+        },
+        currencyBreakdown: {
+          KRW: { count: 0, totalAmount: 0 },
+          USD: { count: 0, totalAmount: 0 }
+        },
+        notificationStats: {
+          sevenDays: 0,
+          threeDays: 0,
+          sameDay: 0,
+          totalWithNotifications: 0
+        },
+        autoRenewalStats: {
+          enabled: 0,
+          disabled: 0,
+          percentage: 0
+        }
+      })
+    };
   }
   return context;
 };
@@ -234,32 +351,36 @@ export const useApp = () => {
 function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [settings, setSettings] = useState<UserSettings>({
+  const [preferences, setPreferences] = useState<UserPreferences>({
     exchangeRate: 1300,
+    defaultCurrency: 'KRW',
     notifications: {
       paymentReminders: true,
       priceChanges: false,
-      subscriptionExpiry: true
-    }
+      subscriptionExpiry: true,
+      email: true,
+      push: true,
+      sms: false,
+    },
+    theme: 'auto',
+    language: 'ko',
+    timezone: 'Asia/Seoul',
+    dateFormat: 'YYYY-MM-DD',
+    currencyFormat: 'KRW',
   });
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<SubscriptionStats>({
-    totalMonthly: 0,
-    monthlyTotal: 0,
-    yearlySpendingToDate: 0,
-    yearlyTotal: 0,
-    totalYearly: 0,
-    activeCount: 0,
-    pausedCount: 0,
-    cancelledCount: 0,
     totalSubscriptions: 0,
+    activeSubscriptions: 0,
+    pausedSubscriptions: 0,
+    cancelledSubscriptions: 0,
+    totalMonthlyKrw: 0,
+    avgSubscriptionCost: 0,
     upcomingPayments: 0,
     todayCount: 0,
     weekCount: 0,
-    todayTotal: 0,
-    weeklyTotal: 0,
-    avgSubscriptionCost: 0,
-    monthlyTrend: 0,
     categoryBreakdown: {},
     paymentCycleBreakdown: {
       monthly: { count: 0, totalAmount: 0 },
@@ -270,7 +391,6 @@ function AppProvider({ children }: { children: ReactNode }) {
       KRW: { count: 0, totalAmount: 0 },
       USD: { count: 0, totalAmount: 0 }
     },
-    tierBreakdown: {},
     notificationStats: {
       sevenDays: 0,
       threeDays: 0,
@@ -281,19 +401,6 @@ function AppProvider({ children }: { children: ReactNode }) {
       enabled: 0,
       disabled: 0,
       percentage: 0
-    },
-    tagStats: {},
-    startDateBreakdown: {},
-    paymentDayBreakdown: {},
-    insights: {
-      mostExpensiveCategory: '',
-      cheapestCategory: '',
-      mostPopularCategory: '',
-      averageMonthlySpending: 0,
-      totalSavingsFromYearly: 0,
-      projectedYearlySpending: 0,
-      spendingGrowthRate: 0,
-      subscriptionEfficiency: 0
     }
   });
 
@@ -323,35 +430,28 @@ function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('📋 App: getSession 결과:', { hasSession: !!session, hasUser: !!session?.user });
+        // Firebase auth status check
+        const { isAuthenticated, user: firebaseUser, error } = await checkAuthStatus();
+        console.log('📋 App: Firebase 인증 상태:', { isAuthenticated, hasUser: !!firebaseUser });
         
-        if (session?.user) {
-          // 세션 만료 확인
-          const now = Math.floor(Date.now() / 1000);
-          const expiresAt = session.expires_at;
-          
-          console.log('⏰ App: 세션 만료 확인:', { now, expiresAt, isExpired: expiresAt && now >= expiresAt });
-          
-          if (expiresAt && now >= expiresAt) {
-            console.log('⚠️ App: 세션이 만료되었습니다.');
-            await handleSessionExpired();
-            return;
-          }
-          
-          console.log('✅ App: 유효한 세션 발견, 사용자 설정 중...');
+        if (isAuthenticated && firebaseUser) {
+          console.log('✅ App: Firebase 인증된 사용자 발견, 사용자 설정 중...');
           setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            joinDate: new Date(session.user.created_at).toISOString().split('T')[0],
-            name: session.user.user_metadata?.name
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            joinDate: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime).toISOString().split('T')[0]! : new Date().toISOString().split('T')[0]!,
+            name: firebaseUser.displayName || undefined
           });
           
-          console.log('🔑 Initial auth - Setting access token:', session.access_token ? 'present' : 'missing');
-          apiService.setAccessToken(session.access_token);
+          // Firebase access token will be handled by Firebase context
+          console.log('🔑 Initial auth - Firebase user authenticated');
           
           console.log('🚀 Initial auth - Calling loadUserData...');
-          await loadUserData();
+          try {
+            await loadUserData();
+          } catch (loadError) {
+            console.error('⚠️ loadUserData 실패, 기본 상태로 계속 진행:', loadError);
+          }
         } else {
           console.log('❌ App: 세션 또는 사용자가 없음, 로그아웃 상태로 설정');
         }
@@ -371,36 +471,40 @@ function AppProvider({ children }: { children: ReactNode }) {
         }
         
         // 로그아웃 처리
-        await supabase.auth.signOut();
+        // Firebase signOut will be handled by AuthContext
         
         // 로컬 상태 초기화
         setUser(null);
         setSubscriptions([]);
-        setSettings({
+        setPreferences({
           exchangeRate: 1300,
+          defaultCurrency: 'KRW',
           notifications: {
             paymentReminders: true,
             priceChanges: true,
             subscriptionExpiry: true,
+            email: true,
+            push: true,
+            sms: false,
           },
+          theme: 'auto',
+          language: 'ko',
+          timezone: 'Asia/Seoul',
+          dateFormat: 'YYYY-MM-DD',
+          currencyFormat: 'KRW',
         });
+        setNotifications([]);
+        setCategories([]);
         setStats({
-          totalMonthly: 0,
-          monthlyTotal: 0,
-          yearlySpendingToDate: 0,
-          yearlyTotal: 0,
-          totalYearly: 0,
-          activeCount: 0,
-          pausedCount: 0,
-          cancelledCount: 0,
           totalSubscriptions: 0,
+          activeSubscriptions: 0,
+          pausedSubscriptions: 0,
+          cancelledSubscriptions: 0,
+          totalMonthlyKrw: 0,
+          avgSubscriptionCost: 0,
           upcomingPayments: 0,
           todayCount: 0,
           weekCount: 0,
-          todayTotal: 0,
-          weeklyTotal: 0,
-          avgSubscriptionCost: 0,
-          monthlyTrend: 0,
           categoryBreakdown: {},
           paymentCycleBreakdown: {
             monthly: { count: 0, totalAmount: 0 },
@@ -411,7 +515,6 @@ function AppProvider({ children }: { children: ReactNode }) {
             KRW: { count: 0, totalAmount: 0 },
             USD: { count: 0, totalAmount: 0 },
           },
-          tierBreakdown: {},
           notificationStats: {
             sevenDays: 0,
             threeDays: 0,
@@ -423,19 +526,6 @@ function AppProvider({ children }: { children: ReactNode }) {
             disabled: 0,
             percentage: 0,
           },
-          tagStats: {},
-          startDateBreakdown: {},
-          paymentDayBreakdown: {},
-          insights: {
-            mostExpensiveCategory: '',
-            cheapestCategory: '',
-            mostPopularCategory: '',
-            averageMonthlySpending: 0,
-            totalSavingsFromYearly: 0,
-            projectedYearlySpending: 0,
-            spendingGrowthRate: 0,
-            subscriptionEfficiency: 0,
-          },
         });
         
         console.log('세션 만료로 인해 로그아웃되었습니다.');
@@ -446,108 +536,109 @@ function AppProvider({ children }: { children: ReactNode }) {
 
     initializeAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.email);
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        // 세션 만료 확인
-        const now = Math.floor(Date.now() / 1000);
-        const expiresAt = session.expires_at;
-        
-        if (expiresAt && now >= expiresAt) {
-          console.log('세션이 만료되었습니다.');
-          await handleSessionExpired();
-          return;
-        }
-        
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          joinDate: new Date(session.user.created_at).toISOString().split('T')[0],
-          name: session.user.user_metadata?.name
-        });
-        
-        console.log('🔑 Setting access token:', session.access_token ? 'present' : 'missing');
-        apiService.setAccessToken(session.access_token);
-        
-        console.log('🚀 Calling loadUserData after auth state change...');
-        await loadUserData();
-      } else if (event === 'SIGNED_OUT') {
-        // 사용자 행동 추적
-        if (user) {
-          await trackUserBehavior(user.id, { action: 'sign_out' });
-        }
-        
-        setUser(null);
-        setSubscriptions([]);
-        setSettings({
-          exchangeRate: 1300,
-          notifications: {
-            paymentReminders: true,
-            priceChanges: true,
-            subscriptionExpiry: true
-          }
-        });
-        apiService.setAccessToken(null);
-      } else if (event === 'TOKEN_REFRESHED') {
-        // 토큰 갱신 시 액세스 토큰 업데이트
-        if (session?.access_token) {
-          apiService.setAccessToken(session.access_token);
-        }
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // Firebase auth state listener will be handled by AuthContext
+    // No need for manual subscription cleanup as it's handled by the context
   }, []);
 
   // 구독 데이터나 설정이 변경될 때마다 통계 업데이트
   useEffect(() => {
-    if ((subscriptions && subscriptions.length > 0) || settings.exchangeRate) {
+    if ((subscriptions && subscriptions.length > 0) || preferences.exchangeRate) {
       const newStats = calculateStats();
       setStats(newStats);
     }
-  }, [subscriptions, settings.exchangeRate]);
+  }, [subscriptions, preferences.exchangeRate]);
 
   const loadUserData = async () => {
     try {
-      console.log('🔄 loadUserData started');
+      console.log('🔄 loadUserData 시작');
+      console.log('🔍 현재 isLoading 상태:', isLoading);
+      
+      // Firebase auth check
+      const { isAuthenticated } = await checkAuthStatus();
+      if (!isAuthenticated) {
+        console.error('❌ Firebase 인증이 필요합니다.');
+        throw new Error('사용자 인증이 필요합니다.');
+      }
+      
+      console.log('✅ Firebase 인증 확인됨');
       
       // 데이터 로딩 중 상태 표시
       const loadingSteps = {
         subscriptions: false,
-        settings: false,
+        preferences: false,
+        notifications: false,
+        categories: false,
         stats: false
       };
 
-      // Load subscriptions
-      console.log('📊 Loading subscriptions...');
+      // Helper function with timeout
+      const withTimeout = (promise: Promise<any>, timeoutMs: number = 10000) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('API 호출 타임아웃')), timeoutMs)
+          )
+        ]);
+      };
+
+      // Load subscriptions with timeout
+      console.log('📊 구독 데이터 로딩 중...');
       try {
-        const subscriptionsData = await apiService.getSubscriptions();
-        console.log('📊 Subscriptions loaded:', {
+        const subscriptionsData = await withTimeout(apiService.getSubscriptions(), 10000);
+        console.log('📊 구독 데이터 로딩 성공:', {
           count: subscriptionsData.subscriptions?.length || 0,
           data: subscriptionsData.subscriptions?.slice(0, 2) // Log first 2 items for debugging
         });
         setSubscriptions(subscriptionsData.subscriptions || []);
         loadingSteps.subscriptions = true;
       } catch (subscriptionError) {
-        console.error('❌ Error loading subscriptions:', subscriptionError);
+        console.error('❌ 구독 데이터 로딩 실패:', subscriptionError);
         // 구독 데이터 로딩 실패해도 계속 진행
         setSubscriptions([]);
       }
 
-      // Load settings
-      console.log('⚙️ Loading settings...');
+      // Load preferences with timeout
+      console.log('⚙️ Loading preferences...');
       try {
-        const settingsData = await apiService.getSettings();
-        console.log('⚙️ Settings loaded:', settingsData);
-        if (settingsData.settings) {
-          setSettings(prev => ({ ...prev, ...settingsData.settings }));
+        const preferencesData = await withTimeout(apiService.getPreferences(), 3000);
+        console.log('⚙️ Preferences loaded:', preferencesData);
+        if (preferencesData.preferences) {
+          setPreferences(prev => ({ ...prev, ...preferencesData.preferences }));
         }
-        loadingSteps.settings = true;
-      } catch (settingsError) {
-        console.error('❌ Error loading settings:', settingsError);
+        loadingSteps.preferences = true;
+      } catch (preferencesError) {
+        console.error('❌ Error loading preferences:', preferencesError);
         // 설정 로딩 실패해도 기본값 사용
+      }
+
+      // Load notifications with timeout
+      console.log('🔔 Loading notifications...');
+      try {
+        const notificationsData = await withTimeout(apiService.getNotifications(), 3000);
+        console.log('🔔 Notifications loaded:', {
+          count: notificationsData.notifications?.length || 0,
+          data: notificationsData.notifications?.slice(0, 2)
+        });
+        setNotifications(notificationsData.notifications || []);
+        loadingSteps.notifications = true;
+      } catch (notificationsError) {
+        console.error('❌ Error loading notifications:', notificationsError);
+        // 알림 로딩 실패해도 계속 진행
+      }
+
+      // Load categories with timeout
+      console.log('🗂️ Loading categories...');
+      try {
+        const categoriesData = await withTimeout(apiService.getCategories(), 3000);
+        console.log('🗂️ Categories loaded:', {
+          count: categoriesData.categories?.length || 0,
+          data: categoriesData.categories?.slice(0, 2)
+        });
+        setCategories(categoriesData.categories || []);
+        loadingSteps.categories = true;
+      } catch (categoriesError) {
+        console.error('❌ Error loading categories:', categoriesError);
+        // 카테고리 로딩 실패해도 계속 진행
       }
 
       // 통계 데이터 업데이트
@@ -556,8 +647,8 @@ function AppProvider({ children }: { children: ReactNode }) {
         const newStats = calculateStats();
         console.log('📈 Stats calculated:', {
           totalSubscriptions: newStats.totalSubscriptions,
-          activeCount: newStats.activeCount,
-          totalMonthly: newStats.totalMonthly
+          activeSubscriptions: newStats.activeSubscriptions,
+          totalMonthlyKrw: newStats.totalMonthlyKrw
         });
         setStats(newStats);
         loadingSteps.stats = true;
@@ -577,11 +668,10 @@ function AppProvider({ children }: { children: ReactNode }) {
       
       // Try to identify the specific issue
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('🔍 Auth session check:', {
-          hasSession: !!session,
-          userId: session?.user?.id,
-          accessToken: session?.access_token ? 'present' : 'missing'
+        // Firebase auth check
+        const { isAuthenticated } = await checkAuthStatus();
+        console.log('🔍 Firebase auth check:', {
+          isAuthenticated
         });
       } catch (authError) {
         console.error('🔍 Auth session check failed:', authError);
@@ -589,23 +679,35 @@ function AppProvider({ children }: { children: ReactNode }) {
       
       // 에러가 발생해도 기본 상태로 설정
       setSubscriptions([]);
+      setPreferences({
+        exchangeRate: 1300,
+        defaultCurrency: 'KRW',
+        notifications: {
+          paymentReminders: true,
+          priceChanges: true,
+          subscriptionExpiry: true,
+          email: true,
+          push: true,
+          sms: false,
+        },
+        theme: 'auto',
+        language: 'ko',
+        timezone: 'Asia/Seoul',
+        dateFormat: 'YYYY-MM-DD',
+        currencyFormat: 'KRW',
+      });
+      setNotifications([]);
+      setCategories([]);
       setStats({
-        totalMonthly: 0,
-        monthlyTotal: 0,
-        yearlySpendingToDate: 0,
-        yearlyTotal: 0,
-        totalYearly: 0,
-        activeCount: 0,
-        pausedCount: 0,
-        cancelledCount: 0,
         totalSubscriptions: 0,
+        activeSubscriptions: 0,
+        pausedSubscriptions: 0,
+        cancelledSubscriptions: 0,
+        totalMonthlyKrw: 0,
+        avgSubscriptionCost: 0,
         upcomingPayments: 0,
         todayCount: 0,
         weekCount: 0,
-        todayTotal: 0,
-        weeklyTotal: 0,
-        avgSubscriptionCost: 0,
-        monthlyTrend: 0,
         categoryBreakdown: {},
         paymentCycleBreakdown: {
           monthly: { count: 0, totalAmount: 0 },
@@ -616,7 +718,6 @@ function AppProvider({ children }: { children: ReactNode }) {
           KRW: { count: 0, totalAmount: 0 },
           USD: { count: 0, totalAmount: 0 }
         },
-        tierBreakdown: {},
         notificationStats: {
           sevenDays: 0,
           threeDays: 0,
@@ -627,54 +728,40 @@ function AppProvider({ children }: { children: ReactNode }) {
           enabled: 0,
           disabled: 0,
           percentage: 0
-        },
-        tagStats: {},
-        startDateBreakdown: {},
-        paymentDayBreakdown: {},
-        insights: {
-          mostExpensiveCategory: '',
-          cheapestCategory: '',
-          mostPopularCategory: '',
-          averageMonthlySpending: 0,
-          totalSavingsFromYearly: 0,
-          projectedYearlySpending: 0,
-          spendingGrowthRate: 0,
-          subscriptionEfficiency: 0
         }
       });
+    } finally {
+      console.log('🏁 loadUserData 완료, setIsLoading(false) 호출');
+      setIsLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Firebase auth
+      const { user, error } = await signInWithEmail(email, password);
 
       if (error) {
         // 더 구체적인 에러 메시지 제공
         let errorMessage = '로그인에 실패했습니다.';
         
-        if (error.message.includes('Invalid login credentials')) {
+        if (error?.code === 'auth/invalid-credential') {
           errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = '이메일 인증이 필요합니다. 이메일을 확인해주세요.';
-        } else if (error.message.includes('Too many requests')) {
+        } else if (error?.code === 'auth/too-many-requests') {
           errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
         }
         
         throw new Error(errorMessage);
       }
 
-      if (data.user) {
+      if (user) {
         // 사용자 행동 추적
-        await trackUserBehavior(data.user.id, { action: 'login' });
+        await trackUserBehavior(user.uid, { action: 'login' });
         
         // 통계 데이터 초기화 (필요한 경우)
         try {
-          await collectAndSaveAllStatistics(data.user.id);
+          await collectAndSaveAllStatistics(user.uid);
         } catch (error) {
           console.warn('통계 데이터 초기화 실패:', error);
         }
@@ -709,26 +796,18 @@ function AppProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString()
       });
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
+      // Firebase Google OAuth
+      const { user, error } = await signInWithGoogle();
 
       if (error) {
         console.error('Google OAuth 오류:', error);
         
         // 구체적인 오류 메시지 제공
-        const errorMessage = getOAuthErrorMessage(error.message);
+        const errorMessage = getOAuthErrorMessage(error?.message || 'Google 로그인에 실패했습니다.');
         throw new Error(errorMessage);
       }
       
-      console.log('Google OAuth 성공:', data);
+      console.log('Google OAuth 성공:', user);
     } catch (error) {
       console.error('Google login error:', error);
       throw error;
@@ -743,20 +822,15 @@ function AppProvider({ children }: { children: ReactNode }) {
       // First create user via our API
       await apiService.signup(email, password, name);
       
-      // Then sign them in
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Then sign them in with Firebase
+      const { user, error } = await signInWithEmail(email, password);
 
       if (error) {
         // 더 구체적인 에러 메시지 제공
         let errorMessage = '로그인에 실패했습니다.';
         
-        if (error.message.includes('Invalid login credentials')) {
+        if (error?.code === 'auth/invalid-credential') {
           errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = '이메일 인증이 필요합니다. 이메일을 확인해주세요.';
         }
         
         throw new Error(errorMessage);
@@ -776,74 +850,65 @@ function AppProvider({ children }: { children: ReactNode }) {
         await trackUserBehavior(user.id, { action: 'logout' });
       }
       
-      const { error } = await supabase.auth.signOut();
-      if (error) {
+      // Firebase sign out
+      const { success, error } = await signOutUser();
+      if (!success || error) {
         throw new Error('로그아웃에 실패했습니다. 다시 시도해주세요.');
       }
       
       // 로컬 상태 초기화
       setUser(null);
       setSubscriptions([]);
-      setSettings({
+      setPreferences({
         exchangeRate: 1300,
+        defaultCurrency: 'KRW',
         notifications: {
           paymentReminders: true,
           priceChanges: true,
           subscriptionExpiry: true,
+          email: true,
+          push: true,
+          sms: false,
         },
+        theme: 'auto',
+        language: 'ko',
+        timezone: 'Asia/Seoul',
+        dateFormat: 'YYYY-MM-DD',
+        currencyFormat: 'KRW',
       });
+      setNotifications([]);
+      setCategories([]);
       setStats({
-        totalMonthly: 0,
-        monthlyTotal: 0,
-        yearlySpendingToDate: 0,
-        yearlyTotal: 0,
-        totalYearly: 0,
-        activeCount: 0,
-        pausedCount: 0,
-        cancelledCount: 0,
         totalSubscriptions: 0,
+        activeSubscriptions: 0,
+        pausedSubscriptions: 0,
+        cancelledSubscriptions: 0,
+        totalMonthlyKrw: 0,
+        avgSubscriptionCost: 0,
         upcomingPayments: 0,
         todayCount: 0,
         weekCount: 0,
-        todayTotal: 0,
-        weeklyTotal: 0,
-        avgSubscriptionCost: 0,
-        monthlyTrend: 0,
         categoryBreakdown: {},
         paymentCycleBreakdown: {
           monthly: { count: 0, totalAmount: 0 },
           yearly: { count: 0, totalAmount: 0 },
-          onetime: { count: 0, totalAmount: 0 },
+          onetime: { count: 0, totalAmount: 0 }
         },
         currencyBreakdown: {
           KRW: { count: 0, totalAmount: 0 },
-          USD: { count: 0, totalAmount: 0 },
+          USD: { count: 0, totalAmount: 0 }
         },
-        tierBreakdown: {},
         notificationStats: {
           sevenDays: 0,
           threeDays: 0,
           sameDay: 0,
-          totalWithNotifications: 0,
+          totalWithNotifications: 0
         },
         autoRenewalStats: {
           enabled: 0,
           disabled: 0,
-          percentage: 0,
-        },
-        tagStats: {},
-        startDateBreakdown: {},
-        paymentDayBreakdown: {},
-        insights: {
-          mostExpensiveCategory: '',
-          cheapestCategory: '',
-          mostPopularCategory: '',
-          averageMonthlySpending: 0,
-          totalSavingsFromYearly: 0,
-          projectedYearlySpending: 0,
-          spendingGrowthRate: 0,
-          subscriptionEfficiency: 0,
-        },
+          percentage: 0
+        }
       });
     } catch (error) {
       console.error('Logout error:', error);
@@ -901,12 +966,12 @@ function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateSettings = async (newSettings: Partial<UserSettings>) => {
+  const updatePreferences = async (newPreferences: Partial<UserPreferences>) => {
     try {
-      const response = await apiService.updateSettings(newSettings);
-      setSettings(prev => ({ ...prev, ...response.settings }));
+      const response = await apiService.updatePreferences(newPreferences);
+      setPreferences(prev => ({ ...prev, ...response.preferences }));
     } catch (error) {
-      console.error('Error updating settings:', error);
+      console.error('Error updating preferences:', error);
       throw error;
     }
   };
@@ -915,29 +980,36 @@ function AppProvider({ children }: { children: ReactNode }) {
     // Safety check to ensure subscriptions is always an array
     if (!subscriptions || !Array.isArray(subscriptions)) {
       return {
-        totalMonthly: 0,
-        monthlyTotal: 0,
-        totalYearly: 0,
-        yearlyTotal: 0,
-        yearlySpendingToDate: 0,
-        activeCount: 0,
-        pausedCount: 0,
-        cancelledCount: 0,
         totalSubscriptions: 0,
+        activeSubscriptions: 0,
+        pausedSubscriptions: 0,
+        cancelledSubscriptions: 0,
+        totalMonthlyKrw: 0,
+        avgSubscriptionCost: 0,
         upcomingPayments: 0,
         todayCount: 0,
-        todayTotal: 0,
         weekCount: 0,
-        weeklyTotal: 0,
-        prevMonthTotal: 0,
         categoryBreakdown: {},
-        tierBreakdown: {},
-        tagStats: {},
-        paymentDayBreakdown: {},
-        startDateBreakdown: {},
-        notificationStats: { enabled: 0, disabled: 0, percentage: 0 },
-        monthlyTrend: 0,
-        yearlyTrend: 0
+        paymentCycleBreakdown: {
+          monthly: { count: 0, totalAmount: 0 },
+          yearly: { count: 0, totalAmount: 0 },
+          onetime: { count: 0, totalAmount: 0 }
+        },
+        currencyBreakdown: {
+          KRW: { count: 0, totalAmount: 0 },
+          USD: { count: 0, totalAmount: 0 }
+        },
+        notificationStats: {
+          sevenDays: 0,
+          threeDays: 0,
+          sameDay: 0,
+          totalWithNotifications: 0
+        },
+        autoRenewalStats: {
+          enabled: 0,
+          disabled: 0,
+          percentage: 0
+        }
       };
     }
 
@@ -948,41 +1020,26 @@ function AppProvider({ children }: { children: ReactNode }) {
     const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-    let totalMonthly = 0; // 1일부터 오늘까지 실제 지출한 금액
-    let monthlyTotal = 0; // 모든 활성 구독의 월간 총액
-    let yearlySpendingToDate = 0; // 해당년도 1월 1일부터 오늘까지 지출한 합계
-    let yearlyTotal = 0; // 해당년도 1월 1일부터 12월 31일까지 지출할 합계
-    let totalYearly = 0;
-    let activeCount = 0;
-    let pausedCount = 0;
-    let cancelledCount = 0;
+    let totalMonthlyKrw = 0; // 1일부터 오늘까지 실제 지출한 금액
+    let activeSubscriptions = 0;
+    let pausedSubscriptions = 0;
+    let cancelledSubscriptions = 0;
     let upcomingPayments = 0;
     let todayCount = 0;
     let weekCount = 0;
-    let todayTotal = 0;
-    let weeklyTotal = 0;
     
     // Previous month calculations for trends
     let prevMonthTotal = 0;
 
     subscriptions.forEach(sub => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       
       if (sub.status === 'active') {
-        activeCount++;
+        activeSubscriptions++;
         
         // 1일부터 오늘까지 실제 지출한 금액 계산
         if (sub.paymentDay <= currentDay) {
-          totalMonthly += amount;
-        }
-        
-        // 모든 활성 구독의 월간 총액 계산
-        if (sub.paymentCycle === 'monthly') {
-          monthlyTotal += amount;
-          totalYearly += amount * 12;
-        } else if (sub.paymentCycle === 'yearly') {
-          totalYearly += amount;
-          monthlyTotal += amount / 12;
+          totalMonthlyKrw += amount;
         }
 
         // 해당년도 1월 1일부터 오늘까지 지출한 합계 계산
@@ -994,7 +1051,8 @@ function AppProvider({ children }: { children: ReactNode }) {
           for (let month = 0; month <= currentMonth; month++) {
             const paymentDate = new Date(currentYear, month, sub.paymentDay);
             if (paymentDate <= today) {
-              yearlySpendingToDate += amount;
+              // This calculation is now handled by the API, so we just sum up the amounts
+              // If we need to calculate yearly spending for trends, we'd need to store it or re-calculate
             }
           }
         }
@@ -1002,17 +1060,9 @@ function AppProvider({ children }: { children: ReactNode }) {
         else if (sub.paymentCycle === 'yearly') {
           const paymentDate = new Date(currentYear, 0, sub.paymentDay);
           if (paymentDate <= today) {
-            yearlySpendingToDate += amount;
+            // This calculation is now handled by the API, so we just sum up the amounts
+            // If we need to calculate yearly spending for trends, we'd need to store it or re-calculate
           }
-        }
-
-        // 해당년도 1월 1일부터 12월 31일까지 지출할 합계 계산
-        if (sub.paymentCycle === 'monthly') {
-          // 월간 구독: 12개월 × 월간 금액
-          yearlyTotal += amount * 12;
-        } else if (sub.paymentCycle === 'yearly') {
-          // 연간 구독: 연간 금액
-          yearlyTotal += amount;
         }
 
         // Check for upcoming payments (next 7 days)
@@ -1029,7 +1079,7 @@ function AppProvider({ children }: { children: ReactNode }) {
         // 오늘 결제 예정 확인
         if (sub.paymentDay === currentDay) {
           todayCount++;
-          todayTotal += amount;
+          // This calculation is now handled by the API, so we just sum up the amounts
         }
 
         // 이번 주 결제 예정 확인
@@ -1041,7 +1091,7 @@ function AppProvider({ children }: { children: ReactNode }) {
         const weekPaymentDate = new Date(currentYear, currentMonth, sub.paymentDay);
         if (weekPaymentDate >= startOfWeek && weekPaymentDate <= endOfWeek) {
           weekCount++;
-          weeklyTotal += amount;
+          // This calculation is now handled by the API, so we just sum up the amounts
         }
 
         // Calculate previous month trend (simplified - assumes subscription existed)
@@ -1054,18 +1104,17 @@ function AppProvider({ children }: { children: ReactNode }) {
           }
         }
       } else if (sub.status === 'paused') {
-        pausedCount++;
+        pausedSubscriptions++;
       } else if (sub.status === 'cancelled') {
-        cancelledCount++;
+        cancelledSubscriptions++;
       }
     });
 
-    const monthlyTrend = prevMonthTotal > 0 ? ((totalMonthly - prevMonthTotal) / prevMonthTotal) * 100 : 0;
-    const avgSubscriptionCost = activeCount > 0 ? monthlyTotal / activeCount : 0;
+    const avgSubscriptionCost = activeSubscriptions > 0 ? totalMonthlyKrw / activeSubscriptions : 0;
 
     // 카테고리별 통계 계산
-    const categoryBreakdown: { [category: string]: { count: number; totalAmount: number; monthlyAmount: number; yearlyAmount: number; } } = {};
-    const categoryStats: { [category: string]: { count: number; totalAmount: number; monthlyAmount: number; } } = {};
+    const categoryBreakdown: { [category: string]: { count: number; totalAmount: number; } } = {};
+    const categoryStats: { [category: string]: { count: number; totalAmount: number; } } = {};
 
     // 결제 주기별 통계 계산
     const paymentCycleBreakdown = {
@@ -1079,9 +1128,6 @@ function AppProvider({ children }: { children: ReactNode }) {
       KRW: { count: 0, totalAmount: 0 },
       USD: { count: 0, totalAmount: 0 }
     };
-
-    // 구독 등급별 통계 계산
-    const tierBreakdown: { [tier: string]: { count: number; totalAmount: number; avgAmount: number; } } = {};
 
     // 알림 설정 통계 계산
     const notificationStats = {
@@ -1098,27 +1144,20 @@ function AppProvider({ children }: { children: ReactNode }) {
       percentage: 0
     };
 
-    // 태그별 통계 계산
-    const tagStats: { [tag: string]: { count: number; totalAmount: number; } } = {};
-
-    // 구독 시작일별 통계 계산 (최근 12개월)
-    const startDateBreakdown: { [month: string]: { count: number; totalAmount: number; } } = {};
-
-    // 결제일별 통계 계산
-    const paymentDayBreakdown: { [day: number]: { count: number; totalAmount: number; } } = {};
-
     // 모든 구독을 다시 순회하여 상세 통계 계산
     subscriptions.forEach(sub => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
       const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
 
       // 카테고리별 통계
       if (!categoryStats[sub.category]) {
-        categoryStats[sub.category] = { count: 0, totalAmount: 0, monthlyAmount: 0 };
+        categoryStats[sub.category] = { count: 0, totalAmount: 0 };
       }
-      categoryStats[sub.category].count++;
-      categoryStats[sub.category].totalAmount += amount;
-      categoryStats[sub.category].monthlyAmount += monthlyAmount;
+      const catStats = categoryStats[sub.category];
+      if (catStats) {
+        catStats.count++;
+        catStats.totalAmount += amount;
+      }
 
       // 결제 주기별 통계
       paymentCycleBreakdown[sub.paymentCycle].count++;
@@ -1127,15 +1166,6 @@ function AppProvider({ children }: { children: ReactNode }) {
       // 통화별 통계
       currencyBreakdown[sub.currency].count++;
       currencyBreakdown[sub.currency].totalAmount += amount;
-
-      // 구독 등급별 통계
-      if (sub.tier) {
-        if (!tierBreakdown[sub.tier]) {
-          tierBreakdown[sub.tier] = { count: 0, totalAmount: 0, avgAmount: 0 };
-        }
-        tierBreakdown[sub.tier].count++;
-        tierBreakdown[sub.tier].totalAmount += amount;
-      }
 
       // 알림 설정 통계
       if (sub.notifications?.sevenDays) notificationStats.sevenDays++;
@@ -1151,33 +1181,6 @@ function AppProvider({ children }: { children: ReactNode }) {
       } else {
         autoRenewalStats.disabled++;
       }
-
-      // 태그별 통계
-      if (sub.tags && Array.isArray(sub.tags)) {
-        sub.tags.forEach(tag => {
-          if (!tagStats[tag]) {
-            tagStats[tag] = { count: 0, totalAmount: 0 };
-          }
-          tagStats[tag].count++;
-          tagStats[tag].totalAmount += amount;
-        });
-      }
-
-      // 구독 시작일별 통계 (최근 12개월)
-      const startDate = new Date(sub.startDate);
-      const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
-      if (!startDateBreakdown[monthKey]) {
-        startDateBreakdown[monthKey] = { count: 0, totalAmount: 0 };
-      }
-      startDateBreakdown[monthKey].count++;
-      startDateBreakdown[monthKey].totalAmount += amount;
-
-      // 결제일별 통계
-      if (!paymentDayBreakdown[sub.paymentDay]) {
-        paymentDayBreakdown[sub.paymentDay] = { count: 0, totalAmount: 0 };
-      }
-      paymentDayBreakdown[sub.paymentDay].count++;
-      paymentDayBreakdown[sub.paymentDay].totalAmount += amount;
     });
 
     // 자동 갱신 비율 계산
@@ -1185,104 +1188,41 @@ function AppProvider({ children }: { children: ReactNode }) {
     autoRenewalStats.percentage = totalAutoRenewal > 0 ? (autoRenewalStats.enabled / totalAutoRenewal) * 100 : 0;
 
     // 구독 등급별 평균 금액 계산
-    Object.keys(tierBreakdown).forEach(tier => {
-      if (tierBreakdown[tier].count > 0) {
-        tierBreakdown[tier].avgAmount = tierBreakdown[tier].totalAmount / tierBreakdown[tier].count;
-      }
-    });
+    // This part of the logic needs to be re-evaluated based on the new database schema
+    // For now, we'll keep it simple, assuming 'tier' is removed or handled differently
+    // If 'tier' is still relevant, this section would need to be re-implemented
 
     // 카테고리별 연간 금액 계산
+    // This part of the logic needs to be re-evaluated based on the new database schema
+    // For now, we'll keep it simple, assuming 'tier' is removed or handled differently
+
+    // 카테고리별 통계를 categoryBreakdown에 복사
     Object.keys(categoryStats).forEach(category => {
-      categoryBreakdown[category] = {
-        count: categoryStats[category].count,
-        totalAmount: categoryStats[category].totalAmount,
-        monthlyAmount: categoryStats[category].monthlyAmount,
-        yearlyAmount: categoryStats[category].monthlyAmount * 12
+      const catStats = categoryStats[category];
+      if (catStats) {
+        categoryBreakdown[category] = {
+          count: catStats.count,
+          totalAmount: catStats.totalAmount
+        };
+      }
+    });
+
+          return {
+        totalSubscriptions: subscriptions.length,
+        activeSubscriptions,
+        pausedSubscriptions,
+        cancelledSubscriptions,
+        totalMonthlyKrw,
+        avgSubscriptionCost,
+        upcomingPayments,
+        todayCount,
+        weekCount,
+        categoryBreakdown,
+        paymentCycleBreakdown,
+        currencyBreakdown,
+        notificationStats,
+        autoRenewalStats
       };
-    });
-
-    // 인사이트 계산
-    const insights = {
-      mostExpensiveCategory: '',
-      cheapestCategory: '',
-      mostPopularCategory: '',
-      averageMonthlySpending: 0,
-      totalSavingsFromYearly: 0,
-      projectedYearlySpending: 0,
-      spendingGrowthRate: 0,
-      subscriptionEfficiency: 0
-    };
-
-    // 가장 비싼/저렴한/인기 있는 카테고리 찾기
-    let maxAmount = 0;
-    let minAmount = Infinity;
-    let maxCount = 0;
-
-    Object.keys(categoryStats).forEach(category => {
-      if (categoryStats[category].monthlyAmount > maxAmount) {
-        maxAmount = categoryStats[category].monthlyAmount;
-        insights.mostExpensiveCategory = category;
-      }
-      if (categoryStats[category].monthlyAmount < minAmount) {
-        minAmount = categoryStats[category].monthlyAmount;
-        insights.cheapestCategory = category;
-      }
-      if (categoryStats[category].count > maxCount) {
-        maxCount = categoryStats[category].count;
-        insights.mostPopularCategory = category;
-      }
-    });
-
-    // 평균 월 지출
-    insights.averageMonthlySpending = monthlyTotal;
-
-    // 연간 구독으로 인한 절약액 계산 (월간 가격 대비 연간 구독 할인율 20% 가정)
-    const yearlySubscriptions = subscriptions.filter(sub => sub.paymentCycle === 'yearly' && sub.status === 'active');
-    insights.totalSavingsFromYearly = yearlySubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
-      const monthlyEquivalent = amount / 12;
-      const yearlyEquivalent = monthlyEquivalent * 12;
-      const savings = yearlyEquivalent - amount;
-      return total + savings;
-    }, 0);
-
-    // 예상 연간 지출
-    insights.projectedYearlySpending = yearlyTotal;
-
-    // 지출 증가율 (전월 대비)
-    insights.spendingGrowthRate = monthlyTrend;
-
-    // 구독 효율성 (활성 구독 대비 총 지출)
-    insights.subscriptionEfficiency = activeCount > 0 ? monthlyTotal / activeCount : 0;
-
-    return {
-      totalMonthly,
-      monthlyTotal,
-      yearlySpendingToDate,
-      yearlyTotal,
-      totalYearly,
-      activeCount,
-      pausedCount,
-      cancelledCount,
-      totalSubscriptions: subscriptions.length,
-      upcomingPayments,
-      todayCount,
-      weekCount,
-      todayTotal,
-      weeklyTotal,
-      avgSubscriptionCost,
-      monthlyTrend,
-      categoryBreakdown,
-      paymentCycleBreakdown,
-      currencyBreakdown,
-      tierBreakdown,
-      notificationStats,
-      autoRenewalStats,
-      tagStats,
-      startDateBreakdown,
-      paymentDayBreakdown,
-      insights
-    };
   };
 
   const refreshData = async () => {
@@ -1295,7 +1235,9 @@ function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       user,
       subscriptions: subscriptions || [],
-      settings,
+      preferences,
+      notifications,
+      categories,
       isAuthenticated: !!user,
       isLoading,
       stats,
@@ -1306,63 +1248,11 @@ function AppProvider({ children }: { children: ReactNode }) {
       addSubscription,
       updateSubscription,
       deleteSubscription,
-      updateSettings,
+      updatePreferences,
       refreshData,
       calculateStats
     }}>
-      <Suspense fallback={<LoadingSpinner />}>
-        <Router 
-          basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
-          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-        >
-          <div className="min-h-screen bg-background text-foreground dark">
-            {/* Moonwave Background */}
-            <WaveBackground />
-            
-            {/* Main content */}
-            <div className="relative z-10">
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/subscriptions" element={<ProtectedRoute><AllSubscriptions /></ProtectedRoute>} />
-                <Route path="/subscriptions/:id" element={<ProtectedRoute><SubscriptionCard /></ProtectedRoute>} />
-                <Route path="/subscriptions/new" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
-                <Route path="/subscriptions/:id/edit" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
-                <Route path="/calendar" element={<ProtectedRoute><PaymentCalendar /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                <Route path="/statistics" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/about" element={<AboutUs />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/rls-debug" element={<RLSDebugger />} />
-                <Route path="/data-debug" element={<ProtectedRoute><DataLoadingDebugger /></ProtectedRoute>} />
-                <Route path="/supabase-test" element={<SupabaseTestDashboard />} />
-                
-                {/* Handle preview_page.html and other unmatched routes */}
-                <Route path="/preview_page.html" element={<RedirectRoute />} />
-                <Route path="*" element={<RedirectRoute />} />
-              </Routes>
-            </div>
-            
-            {/* Music Player - Absolute Position */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-              <MusicPlayer />
-            </div>
-            
-            {/* PWA Install Prompt */}
-            <PWAInstallPrompt />
-            
-            {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
-            
-
-            
-            <Toaster />
-          </div>
-        </Router>
-      </Suspense>
+      {children}
     </AppContext.Provider>
   );
 }
@@ -1468,12 +1358,14 @@ function RedirectRoute() {
 
 function App() {
   return (
-    <AppProvider>
-      <Suspense fallback={<LoadingSpinner />}>
-        <Router 
-          basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
-          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-        >
+    <AuthProvider>
+      <DataProvider>
+        <AppProvider>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Router 
+              basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
           <div className="min-h-screen bg-background text-foreground dark">
             {/* Moonwave Background */}
             <WaveBackground />
@@ -1483,6 +1375,8 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/magic-login" element={<MagicLinkLogin />} />
+                <Route path="/magic-signup" element={<MagicLinkSignup />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -1496,9 +1390,8 @@ function App() {
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/rls-debug" element={<RLSDebugger />} />
-                <Route path="/data-debug" element={<ProtectedRoute><DataLoadingDebugger /></ProtectedRoute>} />
-                <Route path="/supabase-test" element={<SupabaseTestDashboard />} />
+                <Route path="/firebase-debug" element={<FirebaseDebugger />} />
+                <Route path="/music" element={<ProtectedRoute><MusicPlayer /></ProtectedRoute>} />
                 
                 {/* Handle preview_page.html and other unmatched routes */}
                 <Route path="/preview_page.html" element={<RedirectRoute />} />
@@ -1506,23 +1399,24 @@ function App() {
               </Routes>
             </div>
             
-            {/* Music Player - Absolute Position */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-              <MusicPlayer />
-            </div>
+            {/* Music Player - Only show when authenticated */}
+            <AuthenticatedMusicPlayer />
             
             {/* PWA Install Prompt */}
             <PWAInstallPrompt />
             
             {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
             
-
+            {/* Firebase Debugger - 개발 모드에서만 표시 */}
+            {import.meta.env.VITE_DEV_MODE === 'true' && <FirebaseDebugger />}
             
             <Toaster />
           </div>
-        </Router>
-      </Suspense>
-    </AppProvider>
+            </Router>
+          </Suspense>
+        </AppProvider>
+      </DataProvider>
+    </AuthProvider>
   );
 }
 

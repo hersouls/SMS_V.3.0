@@ -1,0 +1,112 @@
+name: Performance Audit
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    - cron: '0 3 * * 1'  # 매주 월요일 새벽 3시
+  workflow_dispatch:
+
+jobs:
+  performance-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_APP_URL: https://sub.moonwave.kr
+          VITE_APP_NAME: "SMS V.3.0"
+          VITE_APP_VERSION: "3.0.0"
+          VITE_DEV_MODE: false
+          VITE_ENABLE_DEBUG: false
+          VITE_ALLOWED_ORIGINS: https://sub.moonwave.kr,https://www.sub.moonwave.kr
+        
+      - name: Run Lighthouse CI
+        run: |
+          npx lighthouse ci --config=./lighthouserc.json
+          
+      - name: Run performance audit
+        run: npm run mcp:performance-audit
+        
+      - name: Upload performance report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-report
+          path: |
+            .lighthouseci/
+            performance-report.json
+          retention-days: 30
+
+  bundle-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build and analyze bundle
+        run: npm run analyze
+        
+      - name: Upload bundle analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-analysis
+          path: dist/
+          retention-days: 30
+
+  tailwind-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Analyze Tailwind CSS
+        run: npm run tailwind:analyze
+        
+      - name: Run Tailwind MCP analysis
+        run: npm run tailwind:mcp:analyze
+        
+      - name: Upload Tailwind analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: tailwind-analysis
+          path: |
+            tailwind-analysis.json
+            tailwind-mcp-report.json
+          retention-days: 30 

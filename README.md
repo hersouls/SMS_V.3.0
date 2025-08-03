@@ -1,6 +1,11 @@
-# SMS V.2.0 - Subscription Management System
+# SMS V.3.0 - Subscription Management System
 
-구독 관리 시스템 (SMS V.2.0)은 개인 및 팀의 구독 서비스를 효율적으로 관리할 수 있는 웹 애플리케이션입니다.
+[![Deploy to GitHub Pages](https://github.com/your-username/SMS_V.3.0/actions/workflows/deploy.yml/badge.svg)](https://github.com/your-username/SMS_V.3.0/actions/workflows/deploy.yml)
+[![Security Scan](https://github.com/your-username/SMS_V.3.0/actions/workflows/security.yml/badge.svg)](https://github.com/your-username/SMS_V.3.0/actions/workflows/security.yml)
+[![Test Suite](https://github.com/your-username/SMS_V.3.0/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/SMS_V.3.0/actions/workflows/test.yml)
+[![Performance Audit](https://github.com/your-username/SMS_V.3.0/actions/workflows/performance.yml/badge.svg)](https://github.com/your-username/SMS_V.3.0/actions/workflows/performance.yml)
+
+구독 관리 시스템 (SMS V.3.0)은 개인 및 팀의 구독 서비스를 효율적으로 관리할 수 있는 웹 애플리케이션입니다.
 
 ## 🚀 주요 기능
 
@@ -24,7 +29,7 @@
 ### 1. 저장소 클론
 ```bash
 git clone <repository-url>
-cd SMS_V.2.0
+cd SMS_V.3.0
 ```
 
 ### 2. 의존성 설치
@@ -45,8 +50,8 @@ VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
 
 # Application Configuration
 VITE_APP_URL=https://sub.moonwave.kr
-VITE_APP_NAME=SMS V.2.0
-VITE_APP_VERSION=2.0.0
+VITE_APP_NAME=SMS V.3.0
+VITE_APP_VERSION=3.0.0
 
 # Development Configuration
 VITE_DEV_MODE=true
@@ -127,7 +132,7 @@ Google 로그인 기능을 사용하려면 다음 설정이 필요합니다:
 ## 📁 프로젝트 구조
 
 ```
-SMS_V.2.0/
+SMS_V.3.0/
 ├── components/          # React 컴포넌트
 │   ├── ui/             # Shadcn/ui 컴포넌트
 │   └── ...

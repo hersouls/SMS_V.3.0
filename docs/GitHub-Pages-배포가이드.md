@@ -1,6 +1,6 @@
 # GitHub Pages 배포 가이드
 
-SMS V.2.0을 GitHub Pages에 배포하기 위한 단계별 가이드입니다.
+SMS V.3.0을 GitHub Pages에 배포하기 위한 단계별 가이드입니다.
 
 ## 🚀 자동 배포 설정 (권장)
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { supabase } from '../utils/supabase/client';
+import { useState } from 'react';
+import { supabase, checkSupabaseConnection, checkAuthStatus } from '../utils/supabase/client';
 import { apiService } from '../utils/api';
 import { useApp } from '../App';
 
@@ -16,29 +16,51 @@ export const DataLoadingDebugger = () => {
       authStatus: {},
       directSupabaseQuery: {},
       apiServiceQuery: {},
+      environmentCheck: {},
       errors: []
     };
 
     try {
-      // 1. Check user info
+      // 1. 환경 변수 확인
+      results.environmentCheck = {
+        VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? '설정됨' : '설정되지 않음',
+        VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? '설정됨' : '설정되지 않음',
+        VITE_APP_URL: import.meta.env.VITE_APP_URL,
+        currentDomain: window.location.origin
+      };
+
+      // 2. Check user info
       results.userInfo = {
         user,
         hasUser: !!user,
         userId: user?.id
       };
 
-      // 2. Check auth status
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // 3. Check auth status
+      const authStatus = await checkAuthStatus();
       results.authStatus = {
-        hasSession: !!session,
-        sessionError: sessionError?.message,
-        userId: session?.user?.id,
-        accessToken: session?.access_token ? 'present' : 'missing',
-        expiresAt: session?.expires_at,
-        currentTime: Math.floor(Date.now() / 1000)
+        isAuthenticated: authStatus.isAuthenticated,
+        user: authStatus.user,
+        error: authStatus.error?.message,
+        hasAccessToken: !!authStatus.accessToken
       };
 
-      // 3. Test direct Supabase query
+      // 4. Test Supabase connection
+      try {
+        const isConnected = await checkSupabaseConnection();
+        results.supabaseConnection = {
+          success: isConnected,
+          error: null
+        };
+      } catch (error: any) {
+        results.supabaseConnection = {
+          success: false,
+          error: error.message
+        };
+        results.errors.push(`Supabase 연결 실패: ${error.message}`);
+      }
+
+      // 5. Test direct Supabase query
       try {
         const { data: directData, error: directError } = await supabase
           .from('subscriptions')
@@ -63,7 +85,7 @@ export const DataLoadingDebugger = () => {
         results.errors.push(`Direct Supabase query failed: ${error.message}`);
       }
 
-      // 4. Test API service query
+      // 6. Test API service query
       try {
         const apiData = await apiService.getSubscriptions();
         results.apiServiceQuery = {
@@ -83,10 +105,10 @@ export const DataLoadingDebugger = () => {
         results.errors.push(`API service query failed: ${error.message}`);
       }
 
-      // 5. Check if access token is set
+      // 7. Check if access token is set
       try {
-        if (session?.access_token) {
-          apiService.setAccessToken(session.access_token);
+        if (authStatus.accessToken) {
+          apiService.setAccessToken(authStatus.accessToken);
           results.accessTokenSet = true;
         } else {
           results.accessTokenSet = false;
@@ -98,19 +120,11 @@ export const DataLoadingDebugger = () => {
 
     } catch (error: any) {
       results.errors.push(`General error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+      setDebugInfo(results);
     }
-
-    setDebugInfo(results);
-    setIsLoading(false);
   };
-
-  if (!user) {
-    return (
-      <div className="p-4 bg-yellow-100 border border-yellow-400 rounded">
-        <p>사용자가 로그인되지 않았습니다. 먼저 로그인해주세요.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg max-w-4xl mx-auto">
@@ -119,32 +133,72 @@ export const DataLoadingDebugger = () => {
       <button
         onClick={runDebugTests}
         disabled={isLoading}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
       >
-        {isLoading ? '디버깅 중...' : '디버그 테스트 실행'}
+        {isLoading ? '진단 중...' : '진단 실행'}
       </button>
 
       {Object.keys(debugInfo).length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-2">디버그 결과:</h3>
-          <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto max-h-96 whitespace-pre-wrap">
-            {JSON.stringify(debugInfo, null, 2)}
-          </pre>
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">진단 결과</h3>
           
+          {/* 환경 변수 확인 */}
+          <div className="border rounded p-4">
+            <h4 className="font-semibold mb-2">환경 변수</h4>
+            <pre className="text-sm bg-gray-100 p-2 rounded">
+              {JSON.stringify(debugInfo.environmentCheck, null, 2)}
+            </pre>
+          </div>
+
+          {/* 사용자 정보 */}
+          <div className="border rounded p-4">
+            <h4 className="font-semibold mb-2">사용자 정보</h4>
+            <pre className="text-sm bg-gray-100 p-2 rounded">
+              {JSON.stringify(debugInfo.userInfo, null, 2)}
+            </pre>
+          </div>
+
+          {/* 인증 상태 */}
+          <div className="border rounded p-4">
+            <h4 className="font-semibold mb-2">인증 상태</h4>
+            <pre className="text-sm bg-gray-100 p-2 rounded">
+              {JSON.stringify(debugInfo.authStatus, null, 2)}
+            </pre>
+          </div>
+
+          {/* Supabase 연결 */}
+          <div className="border rounded p-4">
+            <h4 className="font-semibold mb-2">Supabase 연결</h4>
+            <pre className="text-sm bg-gray-100 p-2 rounded">
+              {JSON.stringify(debugInfo.supabaseConnection, null, 2)}
+            </pre>
+          </div>
+
+          {/* 직접 쿼리 */}
+          <div className="border rounded p-4">
+            <h4 className="font-semibold mb-2">직접 Supabase 쿼리</h4>
+            <pre className="text-sm bg-gray-100 p-2 rounded">
+              {JSON.stringify(debugInfo.directSupabaseQuery, null, 2)}
+            </pre>
+          </div>
+
+          {/* API 서비스 쿼리 */}
+          <div className="border rounded p-4">
+            <h4 className="font-semibold mb-2">API 서비스 쿼리</h4>
+            <pre className="text-sm bg-gray-100 p-2 rounded">
+              {JSON.stringify(debugInfo.apiServiceQuery, null, 2)}
+            </pre>
+          </div>
+
+          {/* 에러 목록 */}
           {debugInfo.errors && debugInfo.errors.length > 0 && (
-            <div className="mt-4 p-4 bg-red-100 border border-red-400 rounded">
-              <h4 className="font-semibold text-red-800">발견된 오류:</h4>
+            <div className="border rounded p-4 border-red-300 bg-red-50">
+              <h4 className="font-semibold mb-2 text-red-700">에러 목록</h4>
               <ul className="list-disc list-inside text-red-700">
                 {debugInfo.errors.map((error: string, index: number) => (
-                  <li key={index}>{error}</li>
+                  <li key={index} className="text-sm">{error}</li>
                 ))}
               </ul>
-            </div>
-          )}
-          
-          {debugInfo.errors && debugInfo.errors.length === 0 && (
-            <div className="mt-4 p-4 bg-green-100 border border-green-400 rounded">
-              <p className="text-green-700">모든 테스트가 성공했습니다!</p>
             </div>
           )}
         </div>

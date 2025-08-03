@@ -101,8 +101,8 @@ export const sendNotification = (title: string, options?: NotificationOptions): 
 
   try {
     new Notification(title, {
-      icon: '/moonwave.png',
-      badge: '/moonwave.png',
+      icon: '/Moonwave_2.png',
+      badge: '/Moonwave_2.png',
       ...options,
     });
   } catch (error) {

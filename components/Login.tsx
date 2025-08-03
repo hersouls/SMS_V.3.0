@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, LogIn } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Login() {
   console.log('🔐 Login: 컴포넌트 렌더링 시작');
@@ -16,7 +16,7 @@ export function Login() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { login, loginWithGoogle } = useApp();
+  const { signIn, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +24,12 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const result = await signIn(email, password);
+      if (result.user) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error?.message || '로그인에 실패했습니다.');
+      }
     } catch (err: any) {
       setError(err.message || '로그인에 실패했습니다.');
     } finally {
@@ -38,21 +42,26 @@ export function Login() {
     setIsGoogleLoading(true);
 
     try {
-      await loginWithGoogle();
-      // Google OAuth는 리다이렉트되므로 여기서는 navigate하지 않음
+      const result = await signInWithGoogle();
+      if (result.user) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error?.message || 'Google 로그인에 실패했습니다.');
+      }
     } catch (err: any) {
       setError(err.message || 'Google 로그인에 실패했습니다.');
+    } finally {
       setIsGoogleLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" role="main" aria-label="로그인 페이지">
-      <div className="w-full max-w-md slide-up">
-        <GlassCard variant="strong" className="p-8" withWaveEffect={true}>
+      <div className="w-full max-w-md">
+        <GlassCard variant="strong" className="p-8" withWaveEffect={false}>
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="text-5xl mb-4 wave-pulse">🌊</div>
+            <div className="text-5xl mb-4">🌊</div>
             <h1 className="text-3xl-ko font-medium text-white-force text-high-contrast mb-2 tracking-ko-normal break-keep-ko">
               Moonwave
             </h1>
@@ -78,7 +87,7 @@ export function Login() {
             type="button"
             variant="secondary"
             size="lg"
-            className="w-full mb-6 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
+            className="w-full mb-6 hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base"
             onClick={handleGoogleLogin}
             disabled={isGoogleLoading}
             ariaLabel="Google로 로그인"
@@ -139,8 +148,8 @@ export function Login() {
                     glass-light w-full pl-10 pr-4 py-3 rounded-lg 
                     text-base-ko text-white-force text-high-contrast placeholder-white/50 
                     tracking-ko-normal focus:outline-none focus:ring-2 
-                    focus:ring-blue-500/50 focus:border-transparent
-                    transition-smooth
+                    focus:ring-primary-500/50 focus:border-transparent
+                    transition-base
                   "
                   placeholder="이메일을 입력하세요"
                   required
@@ -165,15 +174,15 @@ export function Login() {
                     glass-light w-full pl-10 pr-12 py-3 rounded-lg 
                     text-base-ko text-white-force text-high-contrast placeholder-white/50 
                     tracking-ko-normal focus:outline-none focus:ring-2 
-                    focus:ring-blue-500/50 focus:border-transparent
-                    transition-smooth
+                    focus:ring-primary-500/50 focus:border-transparent
+                    transition-base
                   "
                   placeholder="비밀번호를 입력하세요"
                   required
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base duration-200"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -190,7 +199,7 @@ export function Login() {
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
+              className="w-full hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base"
               disabled={isLoading}
               ariaLabel="로그인"
             >
@@ -207,25 +216,14 @@ export function Login() {
               아직 계정이 없으신가요?{' '}
               <Link 
                 to="/signup" 
-                className="text-white-force text-high-contrast font-medium transition-smooth hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50"
+                className="text-white-force text-high-contrast font-medium transition-base hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50"
               >
                 회원가입
               </Link>
             </p>
           </div>
 
-          {/* Demo Credentials */}
-          <GlassCard variant="light" className="mt-6 p-4">
-            <div className="text-center">
-              <h3 className="text-sm-ko font-medium text-white-force text-high-contrast mb-2 tracking-ko-normal">
-                테스트 계정
-              </h3>
-              <div className="space-y-1 text-xs-ko text-white-force text-high-contrast tracking-ko-normal">
-                <p>이메일: her_soul@naver.com</p>
-                <p>비밀번호: 27879876</p>
-              </div>
-            </div>
-          </GlassCard>
+
         </GlassCard>
       </div>
     </div>

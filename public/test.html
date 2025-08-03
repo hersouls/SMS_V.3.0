@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moonwave 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+        button {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌊 Moonwave SMS V.3.0 테스트</h1>
+        
+        <div class="status">
+            <h2>현재 상태</h2>
+            <p>포트: 3006</p>
+            <p>시간: <span id="time"></span></p>
+        </div>
+        
+        <div class="status" id="react-status">
+            <h3>React 앱 상태 확인 중...</h3>
+        </div>
+        
+        <button onclick="testReactApp()">React 앱 테스트</button>
+        <button onclick="testSupabase()">Supabase 테스트</button>
+        <button onclick="goToApp()">메인 앱으로 이동</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function updateTime() {
+            document.getElementById('time').textContent = new Date().toLocaleString();
+        }
+        
+        function testReactApp() {
+            const status = document.getElementById('react-status');
+            status.innerHTML = '<h3>React 앱 로딩 테스트 중...</h3>';
+            
+            // 메인 페이지 로드 테스트
+            fetch('/')
+                .then(response => response.text())
+                .then(html => {
+                    if (html.includes('React') || html.includes('App')) {
+                        status.className = 'status success';
+                        status.innerHTML = '<h3>✅ React 앱 로딩 성공</h3><p>메인 페이지에서 HTML이 정상적으로 제공되고 있습니다.</p>';
+                    } else {
+                        status.className = 'status error';
+                        status.innerHTML = '<h3>❌ React 앱 문제 감지</h3><p>HTML은 로드되지만 React 관련 내용이 없습니다.</p>';
+                    }
+                })
+                .catch(error => {
+                    status.className = 'status error';
+                    status.innerHTML = '<h3>❌ React 앱 로딩 실패</h3><p>' + error.message + '</p>';
+                });
+        }
+        
+        function testSupabase() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="status"><h3>Supabase 연결 테스트 중...</h3></div>';
+            
+            // 간단한 Supabase 연결 테스트
+            fetch('https://bfurhjgnnjgfcafdrotk.supabase.co/rest/v1/', {
+                headers: {
+                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdXJoamdubmpnZmNhZmRyb3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2MDQ4NTIsImV4cCI6MjA2OTE4MDg1Mn0.mxP7V92XRdY8e_7r9GR3B04blukhVf1vu_teRguv20U',
+                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdXJoamdubmpnZmNhZmRyb3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2MDQ4NTIsImV4cCI6MjA2OTE4MDg1Mn0.mxP7V92XRdY8e_7r9GR3B04blukhVf1vu_teRguv20U'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    results.innerHTML = '<div class="status success"><h3>✅ Supabase 연결 성공</h3><p>데이터베이스 서버에 정상적으로 연결되었습니다.</p></div>';
+                } else {
+                    results.innerHTML = '<div class="status error"><h3>❌ Supabase 연결 실패</h3><p>응답 코드: ' + response.status + '</p></div>';
+                }
+            })
+            .catch(error => {
+                results.innerHTML = '<div class="status error"><h3>❌ Supabase 연결 오류</h3><p>' + error.message + '</p></div>';
+            });
+        }
+        
+        function goToApp() {
+            window.location.href = '/';
+        }
+        
+        // 초기화
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // 자동으로 React 앱 테스트
+        setTimeout(testReactApp, 1000);
+    </script>
+</body>
+</html>

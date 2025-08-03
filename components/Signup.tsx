@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, UserPlus } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Signup() {
   const [formData, setFormData] = useState({
@@ -19,7 +19,7 @@ export function Signup() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { signup, loginWithGoogle } = useApp();
+  const { signUp, signInWithGoogle } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -51,8 +51,13 @@ export function Signup() {
     setIsLoading(true);
 
     try {
-      await signup(formData.email, formData.password, formData.name);
-      navigate('/dashboard');
+      const result = await signUp(formData.email, formData.password);
+      if (result.user) {
+        // TODO: 사용자 프로필에 이름 추가하는 로직 필요
+        navigate('/dashboard');
+      } else {
+        setError(result.error?.message || '회원가입에 실패했습니다.');
+      }
     } catch (err: any) {
       setError(err.message || '회원가입에 실패했습니다.');
     } finally {
@@ -65,10 +70,15 @@ export function Signup() {
     setIsGoogleLoading(true);
 
     try {
-      await loginWithGoogle();
-      // Google OAuth는 리다이렉트되므로 여기서는 navigate하지 않음
+      const result = await signInWithGoogle();
+      if (result.user) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error?.message || 'Google 회원가입에 실패했습니다.');
+      }
     } catch (err: any) {
       setError(err.message || 'Google 회원가입에 실패했습니다.');
+    } finally {
       setIsGoogleLoading(false);
     }
   };

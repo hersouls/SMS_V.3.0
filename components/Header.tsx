@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Bell, User, BarChart3 } from 'lucide-react';
+import { Icons } from './ui/heroicons';
 import { WaveButton } from './WaveButton';
 
 
@@ -25,12 +25,12 @@ export function Header() {
                 ariaLabel="홈으로 이동"
                 className="p-token-sm hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
               >
-                <Home size={20} className="icon-enhanced" />
+                <Icons.Home size={20} className="icon-enhanced" />
               </WaveButton>
             </Link>
           </div>
 
-          {/* Right: Notifications, Statistics & Profile */}
+          {/* Right: Notifications, Music, Statistics & Profile */}
           <div className="flex items-center space-x-token-xs">
             {/* Notifications */}
             <Link to="/notifications">
@@ -40,9 +40,21 @@ export function Header() {
                 ariaLabel="알림"
                 className="p-token-sm relative hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
               >
-                <Bell size={20} className="icon-enhanced" />
+                <Icons.Bell size={20} className="icon-enhanced" />
                 {/* Notification Badge */}
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full border-2 border-white/20 shadow-lg shadow-red-500/30"></div>
+              </WaveButton>
+            </Link>
+
+            {/* Music */}
+            <Link to="/music">
+              <WaveButton
+                variant="ghost"
+                size="sm"
+                ariaLabel="음악 플레이어"
+                className="p-token-sm hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
+              >
+                <Icons.Music size={20} className="icon-enhanced" />
               </WaveButton>
             </Link>
 
@@ -54,7 +66,7 @@ export function Header() {
                 ariaLabel="통계 대시보드"
                 className="p-token-sm hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
               >
-                <BarChart3 size={20} className="icon-enhanced" />
+                <Icons.BarChart size={20} className="icon-enhanced" />
               </WaveButton>
             </Link>
 
@@ -66,7 +78,7 @@ export function Header() {
                 ariaLabel="설정으로 이동"
                 className="p-token-sm hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
               >
-                <User size={20} className="icon-enhanced" />
+                <Icons.User size={20} className="icon-enhanced" />
               </WaveButton>
             </Link>
           </div>

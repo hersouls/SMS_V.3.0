@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log('🚀 SMS V.2.0 환경 변수 설정 도구');
+console.log('🚀 SMS V.3.0 환경 변수 설정 도구');
 console.log('=====================================\n');
 
 // .env 파일 경로
@@ -23,8 +23,8 @@ VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
 
 # Application Configuration
 VITE_APP_URL=https://sub.moonwave.kr
-VITE_APP_NAME=SMS V.2.0
-VITE_APP_VERSION=2.0.0
+VITE_APP_NAME=SMS V.3.0
+VITE_APP_VERSION=3.0.0
 
 # Development Configuration
 VITE_DEV_MODE=true

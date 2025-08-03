@@ -307,8 +307,8 @@ export const logSessionDetails = async () => {
     }
 
     console.log('\n🔑 토큰 정보:');
-    console.log(`   액세스 토큰: ${session.access_token ? session.access_token.substring(0, 20) + '...' : 'N/A'}`);
-    console.log(`   리프레시 토큰: ${session.refresh_token ? session.refresh_token.substring(0, 20) + '...' : 'N/A'}`);
+    console.log(`   액세스 토큰: ${session.access_token ? '✅ 존재함 (보안상 전체 표시 안함)' : 'N/A'}`);
+    console.log(`   리프레시 토큰: ${session.refresh_token ? '✅ 존재함 (보안상 전체 표시 안함)' : 'N/A'}`);
 
     if (session.user.user_metadata && Object.keys(session.user.user_metadata).length > 0) {
       console.log('\n👤 사용자 메타데이터:');

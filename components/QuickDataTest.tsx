@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../utils/supabase/client';
 
 export const QuickDataTest = () => {
@@ -85,7 +85,7 @@ export const QuickDataTest = () => {
       <button
         onClick={testDirectQuery}
         disabled={isLoading}
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 mb-4"
+        className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 mb-4"
       >
         {isLoading ? '테스트 중...' : '데이터 접근 테스트'}
       </button>

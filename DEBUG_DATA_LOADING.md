@@ -1,97 +1,199 @@
-# 데이터 로딩 디버깅 가이드
+# 데이터 로딩 문제 해결 가이드
 
-로그인은 성공하지만 데이터가 로딩되지 않는 문제를 해결하기 위한 디버깅 도구들과 절차를 안내합니다.
+## 문제 진단
 
-## 🛠️ 추가된 디버깅 도구들
+로그인 후 데이터를 불러오지 못하는 Supabase 연동 이슈를 해결하기 위한 단계별 가이드입니다.
 
-### 1. 데이터 로딩 디버거 (DataLoadingDebugger)
-- **접근 경로**: `/data-debug`
-- **기능**: 인증 상태, 직접 Supabase 쿼리, API 서비스 쿼리 등을 종합적으로 테스트
-- **사용법**: 로그인 후 `/data-debug` 경로로 이동하여 "디버그 테스트 실행" 버튼 클릭
+## 1. 환경 변수 확인
 
-### 2. 빠른 데이터 테스트 (QuickDataTest)
-- **위치**: 대시보드 하단 (개발 환경에서만 표시)
-- **기능**: Supabase 직접 쿼리를 통한 데이터 접근 테스트
-- **사용법**: 대시보드에서 "데이터 접근 테스트" 버튼 클릭
+### 필수 환경 변수
+```bash
+# .env 파일에 다음 변수들이 설정되어 있는지 확인
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+VITE_APP_URL=https://sub.moonwave.kr
+```
 
-### 3. 강화된 콘솔 로깅
-- **위치**: 브라우저 개발자 도구 콘솔
-- **기능**: 
-  - 🔄 `loadUserData` 함수 실행 과정 추적
-  - 🔑 Access Token 설정 확인
-  - 📊 Supabase 쿼리 결과 확인
-  - 🏠 Dashboard 렌더링 시 데이터 상태 확인
+### 환경 변수 확인 방법
+1. 프로젝트 루트에 `.env` 파일이 있는지 확인
+2. 브라우저 개발자 도구 콘솔에서 환경 변수 확인:
+   ```javascript
+   console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+   console.log('Supabase Key:', import.meta.env.VITE_SUPABASE_ANON_KEY);
+   ```
 
-## 📝 디버깅 절차
+## 2. Supabase 프로젝트 설정
 
-### 1단계: 브라우저 콘솔 확인
-1. 개발자 도구 열기 (F12)
-2. Console 탭으로 이동
-3. 로그인 후 다음 로그들을 확인:
-   - `🔑 Initial auth - Setting access token`
-   - `🚀 Initial auth - Calling loadUserData`
-   - `🔄 loadUserData started`
-   - `📊 Loading subscriptions...`
-   - `📊 Subscriptions loaded`
+### 데이터베이스 스키마 확인
+```sql
+-- subscriptions 테이블이 올바르게 생성되어 있는지 확인
+SELECT * FROM information_schema.tables 
+WHERE table_name = 'subscriptions';
 
-### 2단계: 데이터 로딩 디버거 사용
-1. 로그인 후 `/data-debug` 이동
-2. "디버그 테스트 실행" 버튼 클릭
-3. 결과에서 다음 사항 확인:
-   - `authStatus.hasSession`: true인지 확인
-   - `authStatus.accessToken`: "present"인지 확인
-   - `directSupabaseQuery.success`: true인지 확인
-   - `apiServiceQuery.success`: true인지 확인
+-- RLS (Row Level Security) 설정 확인
+SELECT * FROM pg_policies 
+WHERE tablename = 'subscriptions';
+```
 
-### 3단계: 빠른 데이터 테스트 사용
-1. 대시보드에서 "데이터 접근 테스트" 버튼 클릭
-2. 결과에서 다음 사항 확인:
-   - `✅ Auth session OK` 메시지 확인
-   - `✅ User-specific subscriptions: X` 에서 X가 예상 값인지 확인
+### RLS 정책 확인
+```sql
+-- 사용자별 데이터 접근 정책
+CREATE POLICY "Users can view own subscriptions" ON subscriptions
+FOR SELECT USING (auth.uid() = user_id);
 
-## 🔍 가능한 문제와 해결책
+CREATE POLICY "Users can insert own subscriptions" ON subscriptions
+FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-### 문제 1: Access Token이 없음
-**증상**: `accessToken: "missing"` 또는 관련 오류
+CREATE POLICY "Users can update own subscriptions" ON subscriptions
+FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own subscriptions" ON subscriptions
+FOR DELETE USING (auth.uid() = user_id);
+```
+
+## 3. 인증 상태 확인
+
+### 세션 확인
+브라우저 개발자 도구에서 다음을 실행:
+```javascript
+// Supabase 클라이언트 확인
+import { supabase } from './utils/supabase/client';
+
+// 현재 세션 확인
+const { data: { session } } = await supabase.auth.getSession();
+console.log('Session:', session);
+
+// 사용자 정보 확인
+const { data: { user } } = await supabase.auth.getUser();
+console.log('User:', user);
+```
+
+## 4. 데이터 로딩 디버깅
+
+### 디버거 컴포넌트 사용
+1. `/debug` 경로로 이동
+2. "진단 실행" 버튼 클릭
+3. 각 섹션의 결과 확인:
+   - 환경 변수
+   - 사용자 정보
+   - 인증 상태
+   - Supabase 연결
+   - 직접 쿼리
+   - API 서비스 쿼리
+
+### 수동 디버깅
+```javascript
+// 1. Supabase 연결 확인
+import { checkSupabaseConnection } from './utils/supabase/client';
+const isConnected = await checkSupabaseConnection();
+console.log('Supabase 연결:', isConnected);
+
+// 2. 인증 상태 확인
+import { checkAuthStatus } from './utils/supabase/client';
+const authStatus = await checkAuthStatus();
+console.log('인증 상태:', authStatus);
+
+// 3. 직접 쿼리 테스트
+const { data, error } = await supabase
+  .from('subscriptions')
+  .select('*')
+  .eq('user_id', user.id);
+console.log('직접 쿼리 결과:', { data, error });
+```
+
+## 5. 일반적인 문제와 해결책
+
+### 문제 1: 환경 변수가 설정되지 않음
+**증상**: 콘솔에 "Supabase 환경 변수가 설정되지 않았습니다" 에러
+**해결책**: `.env` 파일에 올바른 Supabase URL과 키 설정
+
+### 문제 2: RLS 정책 오류
+**증상**: "new row violates row-level security policy" 에러
+**해결책**: Supabase 대시보드에서 RLS 정책 확인 및 수정
+
+### 문제 3: 세션 만료
+**증상**: 로그인은 되지만 데이터를 불러올 수 없음
 **해결책**: 
-- 로그아웃 후 다시 로그인
-- 브라우저 캐시 및 쿠키 삭제
-- localStorage 초기화
+1. 브라우저에서 로그아웃 후 다시 로그인
+2. 세션 토큰 갱신 확인
 
-### 문제 2: RLS (Row Level Security) 정책 문제
-**증상**: `directSupabaseQuery.error`에 권한 관련 오류
-**해결책**: 
-- `/rls-debug` 페이지에서 RLS 정책 확인
-- Supabase 대시보드에서 정책 설정 검토
+### 문제 4: 네트워크 연결 문제
+**증상**: "데이터베이스 연결에 실패했습니다" 에러
+**해결책**:
+1. 인터넷 연결 확인
+2. Supabase 프로젝트 상태 확인
+3. 방화벽 설정 확인
 
-### 문제 3: 데이터가 없음
-**증상**: 쿼리는 성공하지만 `dataCount: 0`
-**해결책**: 
-- Supabase 대시보드에서 실제 데이터 존재 여부 확인
-- 다른 사용자의 데이터가 보이는지 확인 (RLS 정책 문제일 수 있음)
+## 6. 개발 환경 설정
 
-### 문제 4: API 서비스 오류
-**증상**: `apiServiceQuery.success: false`
-**해결책**: 
-- 네트워크 탭에서 API 요청 상태 확인
-- Supabase Functions 상태 확인
-- 직접 Supabase 쿼리와 API 서비스 쿼리 결과 비교
+### 로컬 개발 시
+```bash
+# 개발 서버 시작
+npm run dev
 
-## 🚨 긴급 해결 방법
+# 환경 변수 확인
+echo $VITE_SUPABASE_URL
+echo $VITE_SUPABASE_ANON_KEY
+```
 
-만약 위의 디버깅 도구들로도 문제를 찾을 수 없다면:
+### 프로덕션 배포 시
+```bash
+# 환경 변수 설정 확인
+# GitHub Pages나 다른 호스팅 서비스에서 환경 변수 설정
+```
 
-1. **강제 새로고침**: Ctrl+F5 (캐시 무시 새로고침)
-2. **시크릿 모드**: 새 시크릿 창에서 로그인 시도
-3. **네트워크 확인**: 네트워크 탭에서 실패한 요청 확인
-4. **Supabase 직접 접근**: Supabase 대시보드에서 직접 데이터 확인
+## 7. 로그 확인
 
-## 📞 추가 지원
+### 브라우저 콘솔 로그
+개발자 도구에서 다음 로그들을 확인:
+- `🔍 Supabase 환경 변수 확인`
+- `🔑 세션 상태`
+- `📊 구독 데이터 로딩 시작`
+- `✅ 인증 확인됨`
 
-위의 모든 방법을 시도해도 문제가 해결되지 않으면:
-1. 콘솔 로그 전체 복사
-2. 디버깅 도구 결과 스크린샷
-3. 네트워크 요청 실패 정보
-4. 브라우저 및 환경 정보
+### 네트워크 탭
+1. Network 탭 열기
+2. 페이지 새로고침
+3. Supabase API 호출 확인
+4. 응답 상태 코드 확인 (200, 401, 403 등)
 
-이 정보들을 바탕으로 더 구체적인 해결책을 제시할 수 있습니다.
+## 8. 추가 디버깅 도구
+
+### Supabase 대시보드
+1. [Supabase 대시보드](https://supabase.com/dashboard) 접속
+2. 프로젝트 선택
+3. Authentication > Users에서 사용자 확인
+4. Table Editor에서 데이터 확인
+5. Logs에서 API 호출 로그 확인
+
+### SQL 에디터에서 직접 확인
+```sql
+-- 사용자별 구독 데이터 확인
+SELECT * FROM subscriptions 
+WHERE user_id = 'your-user-id';
+
+-- RLS 정책 확인
+SELECT * FROM pg_policies 
+WHERE tablename = 'subscriptions';
+```
+
+## 9. 문제 해결 체크리스트
+
+- [ ] 환경 변수가 올바르게 설정됨
+- [ ] Supabase 프로젝트가 활성 상태
+- [ ] 데이터베이스 스키마가 올바르게 생성됨
+- [ ] RLS 정책이 올바르게 설정됨
+- [ ] 사용자가 올바르게 인증됨
+- [ ] 세션이 유효함
+- [ ] 네트워크 연결이 정상임
+- [ ] API 호출이 성공함
+
+## 10. 지원 및 문의
+
+문제가 지속되는 경우:
+1. 브라우저 콘솔의 전체 로그 캡처
+2. 디버거 컴포넌트의 결과 스크린샷
+3. Supabase 대시보드의 로그 확인
+4. 네트워크 탭의 API 호출 결과
+
+이 정보들을 바탕으로 더 구체적인 해결책을 제공할 수 있습니다.

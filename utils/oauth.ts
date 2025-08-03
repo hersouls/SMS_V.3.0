@@ -9,7 +9,6 @@ export interface OAuthConfig {
 
 // 현재 환경 감지
 export const getCurrentEnvironment = () => {
-  const protocol = window.location.protocol;
   const hostname = window.location.hostname;
   
   if (hostname === 'localhost' || hostname === '127.0.0.1') {

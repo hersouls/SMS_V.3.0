@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   payment_day INTEGER NOT NULL CHECK (payment_day >= 1 AND payment_day <= 31),
   payment_method VARCHAR(100),
   start_date DATE NOT NULL,
+  end_date DATE,
   auto_renewal BOOLEAN DEFAULT TRUE,
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'paused', 'cancelled')),
   category VARCHAR(100),

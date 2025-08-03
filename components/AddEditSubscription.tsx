@@ -4,7 +4,10 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useLoadingState } from '../hooks/useLoadingState';
 import { 
   Save,
   X,
@@ -135,7 +138,10 @@ const STATUS_OPTIONS = [
 export function AddEditSubscription() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { subscriptions, settings, user, addSubscription, updateSubscription } = useApp();
+  const { user } = useAuth();
+  const { subscriptions, preferences, addSubscription, updateSubscription } = useData();
+  const { handleError } = useErrorHandler(user?.uid);
+  const { withLoading, isLoading } = useLoadingState();
   
   const isEditing = !!id;
   const existingSubscription = isEditing ? subscriptions.find(sub => sub.id === id) : null;
@@ -152,6 +158,7 @@ export function AddEditSubscription() {
     paymentDay: '1',
     paymentMethod: '',
     startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
     autoRenewal: true,
     status: 'active' as 'active' | 'paused' | 'cancelled',
     category: '엔터테인먼트',
@@ -166,7 +173,6 @@ export function AddEditSubscription() {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [activeSection, setActiveSection] = useState<'basic' | 'payment' | 'settings' | 'notifications'>('basic');
   const [newTag, setNewTag] = useState('');
@@ -177,35 +183,42 @@ export function AddEditSubscription() {
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
   const [isCustomService, setIsCustomService] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
-  // 드롭다운 외부 클릭 감지
+  // 드롭다운 외부 클릭 감지 및 리사이즈 대응
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
       const dropdown = document.querySelector('.service-dropdown');
       if (dropdown && !dropdown.contains(target)) {
-        console.log('외부 클릭 감지');
         setIsServiceDropdownOpen(false);
       }
     };
 
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        console.log('ESC 키 감지');
         setIsServiceDropdownOpen(false);
       }
     };
 
+    const handleResize = () => {
+      // 화면 크기 변화 시 드롭다운 닫기 (레이아웃 안에 있으므로 자동으로 위치 조정됨)
+      if (isServiceDropdownOpen) {
+        // 필요시 추가 로직
+      }
+    };
+
     if (isServiceDropdownOpen) {
-      console.log('드롭다운 이벤트 리스너 추가');
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleEscapeKey);
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('scroll', handleResize);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscapeKey);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleResize);
     };
   }, [isServiceDropdownOpen]);
 
@@ -222,7 +235,8 @@ export function AddEditSubscription() {
         paymentCycle: existingSubscription.paymentCycle,
         paymentDay: existingSubscription.paymentDay.toString(),
         paymentMethod: existingSubscription.paymentMethod || '',
-        startDate: existingSubscription.startDate,
+        startDate: (existingSubscription.startDate && existingSubscription.startDate !== '' ? existingSubscription.startDate : new Date().toISOString().split('T')[0]) as string,
+        endDate: existingSubscription.endDate || '',
         autoRenewal: existingSubscription.autoRenewal,
         status: existingSubscription.status,
         category: existingSubscription.category,
@@ -245,7 +259,6 @@ export function AddEditSubscription() {
 
   // 서비스 선택 핸들러
   const handleServiceSelect = (service: { name: string; url: string }) => {
-    console.log('서비스 선택됨:', service);
     setFormData(prev => ({
       ...prev,
       serviceName: service.name,
@@ -343,58 +356,54 @@ export function AddEditSubscription() {
       return;
     }
 
-    setIsSubmitting(true);
-
-
-    try {
-      const subscriptionData = {
-        serviceName: formData.serviceName.trim(),
-        serviceUrl: formData.serviceUrl.trim() || undefined,
-        logo: formData.logo.trim() || formData.serviceName.charAt(0).toUpperCase(),
-        logoImage: formData.logoImage.trim() || undefined,
-        amount: parseFloat(formData.amount),
-        currency: formData.currency,
-        paymentCycle: formData.paymentCycle,
-        paymentDay: parseInt(formData.paymentDay),
-        paymentMethod: formData.paymentMethod.trim() || undefined,
-        startDate: formData.startDate,
-        autoRenewal: formData.autoRenewal,
-        status: formData.status,
-        category: formData.category,
-        tier: formData.tier.trim() || undefined,
-        tags: formData.tags,
-        memo: formData.memo.trim() || undefined,
-        notifications: formData.notifications
-      };
-
-      if (isEditing && existingSubscription) {
-        await updateSubscription(existingSubscription.id, subscriptionData);
-      } else {
-        await addSubscription(subscriptionData);
-      }
-
-      // 통계 데이터 수집 및 저장
+    await withLoading('submit', async () => {
       try {
-        if (user) {
-          await collectAndSaveAllStatistics(user.id, settings.exchangeRate);
-          console.log('통계 데이터가 성공적으로 수집되었습니다.');
+        const subscriptionData = {
+          serviceName: formData.serviceName.trim(),
+          serviceUrl: formData.serviceUrl.trim() || undefined,
+          logo: formData.logo.trim() || formData.serviceName.charAt(0).toUpperCase(),
+          logoImage: formData.logoImage.trim() || undefined,
+          amount: parseFloat(formData.amount),
+          currency: formData.currency,
+          paymentCycle: formData.paymentCycle,
+          paymentDay: parseInt(formData.paymentDay),
+          paymentMethod: formData.paymentMethod.trim() || undefined,
+          startDate: (formData.startDate && formData.startDate !== '' ? formData.startDate : new Date().toISOString().split('T')[0]) as string,
+          endDate: formData.endDate.trim() || undefined,
+          autoRenewal: formData.autoRenewal,
+          status: formData.status,
+          category: formData.category,
+          tier: formData.tier.trim() || undefined,
+          tags: formData.tags,
+          memo: formData.memo.trim() || undefined,
+          notifications: formData.notifications
+        };
+
+        let result;
+        if (isEditing && existingSubscription) {
+          result = await updateSubscription(existingSubscription.id, subscriptionData);
+        } else {
+          result = await addSubscription(subscriptionData);
         }
+
+        if (result.error) {
+          handleError(result.error, 'Subscription Save', true);
+          return;
+        }
+
+        console.log(`✅ 구독 ${isEditing ? '수정' : '추가'} 성공`);
+        
+        // Firebase 실시간 업데이트로 통계는 자동 계산되므로 별도 통계 수집 불필요
+        
+        // 성공 후 목록 페이지로 이동
+        setTimeout(() => {
+          navigate('/subscriptions');
+        }, 1000);
       } catch (error) {
-        console.error('통계 데이터 수집 중 오류:', error);
-        // 통계 수집 실패는 사용자에게 알리지 않음 (비동기 처리)
+        console.error('Error saving subscription:', error);
+        handleError(error, 'Subscription Save', true);
       }
-
-  
-      setTimeout(() => {
-        navigate('/subscriptions');
-      }, 1000);
-    } catch (error) {
-      console.error('Error saving subscription:', error);
-
-
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   };
 
   // Handle input changes
@@ -463,10 +472,10 @@ export function AddEditSubscription() {
     const amount = parseFloat(formData.amount) || 0;
     if (formData.paymentCycle === 'yearly') {
       const monthlyAmount = amount / 12;
-      const convertedAmount = formData.currency === 'USD' ? monthlyAmount * settings.exchangeRate : monthlyAmount;
+      const convertedAmount = formData.currency === 'USD' ? monthlyAmount * preferences.exchangeRate : monthlyAmount;
       return convertedAmount;
     }
-    return formData.currency === 'USD' ? amount * settings.exchangeRate : amount;
+    return formData.currency === 'USD' ? amount * preferences.exchangeRate : amount;
   };
 
   const sections = [
@@ -529,20 +538,20 @@ export function AddEditSubscription() {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(-1)}
-                disabled={isSubmitting}
+                disabled={isLoading('submit')}
                 className="hidden md:flex text-red-400 hover:text-red-300 hover:bg-red-500/20 active:scale-95 focus:ring-2 focus:ring-red-500/50 transition-all duration-300 font-medium"
               >
-                <X size={16} className={cn("mr-token-xs text-white-force", isSubmitting && "animate-spin")} strokeWidth={1.5} />
+                <X size={16} className={cn("mr-token-xs text-white-force", isLoading('submit') && "animate-spin")} strokeWidth={1.5} />
                 삭제
               </WaveButton>
 
               <WaveButton
                 variant="primary"
                 onClick={() => handleSubmit()}
-                disabled={isSubmitting}
+                disabled={isLoading('submit')}
                 className="shadow-lg shadow-primary-500/20 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-300 text-white-force font-semibold"
               >
-                {isSubmitting ? (
+                {isLoading('submit') ? (
                   <RefreshCw size={16} className="mr-token-xs animate-spin text-white-force" />
                 ) : (
                   <Save size={16} className="mr-token-xs text-white-force" />
@@ -627,22 +636,12 @@ export function AddEditSubscription() {
                                 value={formData.serviceName}
                                 onChange={(e) => handleServiceNameChange(e.target.value)}
                                 onFocus={() => {
-                                  console.log('입력 필드 포커스');
-                                  const input = document.querySelector('.service-dropdown input') as HTMLInputElement;
-                                  if (input) {
-                                    const rect = input.getBoundingClientRect();
-                                    setDropdownPosition({
-                                      top: rect.bottom + 5,
-                                      left: rect.left,
-                                      width: rect.width
-                                    });
-                                  }
                                   setIsServiceDropdownOpen(true);
                                 }}
                                 onBlur={() => {
                                   // 약간의 지연을 두어 클릭 이벤트가 처리되도록 함
                                   setTimeout(() => {
-                                    console.log('입력 필드 블러');
+                                    // 블러 처리 로직이 필요한 경우 여기에 추가
                                   }, 100);
                                 }}
                                 className={cn(
@@ -654,7 +653,6 @@ export function AddEditSubscription() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  console.log('드롭다운 토글:', !isServiceDropdownOpen);
                                   setIsServiceDropdownOpen(!isServiceDropdownOpen);
                                 }}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white-force transition-colors"
@@ -668,29 +666,13 @@ export function AddEditSubscription() {
                             {/* 드롭다운 메뉴 */}
                             {isServiceDropdownOpen && (
                               <div 
-                                className="fixed z-[99999] bg-gray-900 border border-gray-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto"
+                                className="absolute z-50 bg-gray-900 border border-gray-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto service-dropdown-menu backdrop-blur-sm mt-1"
                                 style={{ 
-                                  display: 'block',
-                                  position: 'fixed',
-                                  top: `${dropdownPosition.top}px`,
-                                  left: `${dropdownPosition.left}px`,
-                                  width: `${dropdownPosition.width}px`,
-                                  backgroundColor: '#1f2937',
-                                  border: '1px solid #4b5563',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                                  maxHeight: '240px',
-                                  overflowY: 'auto',
-                                  zIndex: 99999,
-                                  backdropFilter: 'none',
-                                  WebkitBackdropFilter: 'none'
+                                  width: '100%',
+                                  maxWidth: '100%',
+                                  minWidth: '300px'
                                 }}
                               >
-                                {/* 디버깅 정보 */}
-                                <div className="p-2 bg-red-500/20 text-red-400 text-xs">
-                                  드롭다운 열림 - 서비스 수: {filteredServices.length}
-                                </div>
-                                
                                 {/* 검색 입력 */}
                                 <div className="p-3 border-b border-gray-600">
                                   <div className="relative">
@@ -821,7 +803,7 @@ export function AddEditSubscription() {
                                 e.preventDefault();
                                 e.currentTarget.classList.remove('border-primary-500', 'bg-primary-500/10');
                                 const files = e.dataTransfer.files;
-                                if (files.length > 0) {
+                                if (files.length > 0 && files[0]) {
                                   handleImageUpload(files[0]);
                                 }
                               }}
@@ -925,14 +907,14 @@ export function AddEditSubscription() {
                             <span>카테고리 *</span>
                           </label>
                           <div className="grid grid-cols-2 gap-token-xs">
-                            {CATEGORIES.map((category) => {
+                            {CATEGORIES.map((category, index) => {
                               const IconComponent = category.icon;
                               const categoryColors = getPhaseColors(category.phase);
                               const isSelected = formData.category === category.name;
                               
                               return (
                                 <button
-                                  key={category.name}
+                                  key={category.name + '-' + index}
                                   type="button"
                                   onClick={() => handleChange('category', category.name)}
                                   className={cn(
@@ -1058,13 +1040,13 @@ export function AddEditSubscription() {
                         <div className="space-y-token-sm">
                           <label className="text-white-force font-medium">통화</label>
                           <div className="space-y-token-xs">
-                            {CURRENCIES.map((currency) => {
+                            {CURRENCIES.map((currency, index) => {
                               const IconComponent = currency.icon;
                               const isSelected = formData.currency === currency.value;
                               
                               return (
                                 <button
-                                  key={currency.value}
+                                  key={currency.value + '-' + index}
                                   type="button"
                                   onClick={() => handleChange('currency', currency.value)}
                                   className={cn(
@@ -1092,13 +1074,13 @@ export function AddEditSubscription() {
                           <span>결제 주기 *</span>
                         </label>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-token-md">
-                          {PAYMENT_CYCLES.map((cycle) => {
+                          {PAYMENT_CYCLES.map((cycle, index) => {
                             const IconComponent = cycle.icon;
                             const isSelected = formData.paymentCycle === cycle.value;
                             
                             return (
                               <button
-                                key={cycle.value}
+                                key={cycle.value + '-' + index}
                                 type="button"
                                 onClick={() => handleChange('paymentCycle', cycle.value)}
                                 className={cn(
@@ -1134,8 +1116,8 @@ export function AddEditSubscription() {
                               errors.paymentDay ? "border-error-500" : "border-white/10"
                             )}
                           >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day} className="bg-gray-800">
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day, index) => (
+                              <option key={`day-${day}-${index}`} value={day} className="bg-gray-800">
                                 매월 {day}일
                               </option>
                             ))}
@@ -1218,40 +1200,41 @@ export function AddEditSubscription() {
                       </div>
 
                     <div className="space-y-token-lg">
-                      {/* Status & Start Date */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-token-md">
-                        <div className="space-y-token-sm">
-                          <label className="text-white-force font-medium flex items-center space-x-token-xs">
-                            <Activity size={16} className="text-warning-400" />
-                            <span>구독 상태</span>
-                          </label>
-                          <div className="space-y-token-xs">
-                            {STATUS_OPTIONS.map((status) => {
-                              const IconComponent = status.icon;
-                              const isSelected = formData.status === status.value;
-                              
-                              return (
-                                <button
-                                  key={status.value}
-                                  type="button"
-                                  onClick={() => handleChange('status', status.value)}
-                                  className={cn(
-                                    "w-full p-token-sm rounded-lg border transition-all duration-300 text-left hover:bg-white/20 hover:border-white/40 active:scale-95 focus:ring-2 focus:ring-white/50 focus:outline-none keyboard-navigation",
-                                    isSelected 
-                                      ? "bg-blue-500/40 border-blue-400/60 text-white-force shadow-lg shadow-blue-500/40"
-                                      : "bg-white/10 border-white/20 text-white-force hover:text-white-force hover:bg-white/15"
-                                  )}
-                                >
-                                  <div className="flex items-center space-x-token-sm">
-                                    <IconComponent size={14} />
-                                    <span className="text-sm font-medium">{status.label}</span>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
+                      {/* Status */}
+                      <div className="space-y-token-sm">
+                        <label className="text-white-force font-medium flex items-center space-x-token-xs">
+                          <Activity size={16} className="text-warning-400" />
+                          <span>구독 상태</span>
+                        </label>
+                        <div className="space-y-token-xs">
+                          {STATUS_OPTIONS.map((status, index) => {
+                            const IconComponent = status.icon;
+                            const isSelected = formData.status === status.value;
+                            
+                            return (
+                              <button
+                                key={status.value + '-' + index}
+                                type="button"
+                                onClick={() => handleChange('status', status.value)}
+                                className={cn(
+                                  "w-full p-token-sm rounded-lg border transition-all duration-300 text-left hover:bg-white/20 hover:border-white/40 active:scale-95 focus:ring-2 focus:ring-white/50 focus:outline-none keyboard-navigation",
+                                  isSelected 
+                                    ? "bg-blue-500/40 border-blue-400/60 text-white-force shadow-lg shadow-blue-500/40"
+                                    : "bg-white/10 border-white/20 text-white-force hover:text-white-force hover:bg-white/15"
+                                )}
+                              >
+                                <div className="flex items-center space-x-token-sm">
+                                  <IconComponent size={14} />
+                                  <span className="text-sm font-medium">{status.label}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
+                      </div>
 
+                      {/* Start Date & End Date */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-token-md">
                         <div className="space-y-token-sm">
                           <label className="text-white-force font-medium flex items-center space-x-token-xs">
                             <Calendar size={16} className="text-white-force" />
@@ -1264,6 +1247,52 @@ export function AddEditSubscription() {
                             className="w-full px-token-md py-token-sm bg-white/5 border border-white/10 rounded-lg text-white-force focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:contrast-100"
                           />
                         </div>
+
+                        <div className="space-y-token-sm">
+                          <label className="text-white-force font-medium flex items-center space-x-token-xs">
+                            <Calendar size={16} className="text-warning-400" />
+                            <span>종료일</span>
+                            <span className="text-xs text-white/60">(선택사항)</span>
+                          </label>
+                          <div className="space-y-token-xs">
+                            <div className="relative">
+                              <input
+                                type="date"
+                                value={formData.endDate}
+                                onChange={(e) => {
+                                  const newEndDate = e.target.value;
+                                  handleChange('endDate', newEndDate);
+                                  
+                                  // 종료일을 설정하면 자동 갱신을 활성화
+                                  if (newEndDate && !formData.autoRenewal) {
+                                    handleChange('autoRenewal', true);
+                                  }
+                                }}
+                                className="w-full px-token-md py-token-sm bg-white/5 border border-white/10 rounded-lg text-white-force focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:contrast-100"
+                                placeholder="종료일을 설정하지 않으면 자동 갱신 설정에 따라 결정됩니다"
+                              />
+                              {formData.endDate && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleChange('endDate', '')}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-error-400 transition-colors"
+                                  title="종료일 제거"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                            <div className="text-xs text-white/60">
+                              {formData.endDate ? (
+                                <span className="text-warning-400">종료일 설정됨 - 해당 날짜까지 자동 갱신 후 종료</span>
+                              ) : formData.autoRenewal ? (
+                                <span className="text-success-400">자동 갱신 활성화 - 종료일 없이 계속 갱신</span>
+                              ) : (
+                                <span className="text-info-400">자동 갱신 비활성화 - 1개월 후 자동 종료</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Auto Renewal */}
@@ -1275,12 +1304,39 @@ export function AddEditSubscription() {
                             </div>
                             <div>
                               <h3 className="text-white-force font-medium mb-1">자동 갱신</h3>
-                              <p className="text-white/60 text-sm">구독이 자동으로 갱신되도록 설정합니다</p>
+                              <p className="text-white/60 text-sm">
+                                {formData.endDate 
+                                  ? `종료일(${formData.endDate})까지 자동 갱신 후 종료`
+                                  : formData.autoRenewal 
+                                    ? '종료일 없이 계속 갱신'
+                                    : '1개월 후 자동 종료'
+                                }
+                              </p>
                             </div>
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleChange('autoRenewal', !formData.autoRenewal)}
+                            onClick={() => {
+                              const newAutoRenewal = !formData.autoRenewal;
+                              handleChange('autoRenewal', newAutoRenewal);
+                              
+                              // 자동 갱신을 비활성화하면 종료일을 1개월 후로 설정
+                              if (!newAutoRenewal && !formData.endDate) {
+                                const oneMonthLater = new Date();
+                                oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+                                handleChange('endDate', oneMonthLater.toISOString().split('T')[0]);
+                              }
+                              // 자동 갱신을 활성화하고 종료일이 1개월 후로 설정되어 있다면 종료일 제거
+                              else if (newAutoRenewal && formData.endDate) {
+                                const oneMonthLater = new Date();
+                                oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+                                const oneMonthLaterStr = oneMonthLater.toISOString().split('T')[0];
+                                
+                                if (formData.endDate === oneMonthLaterStr) {
+                                  handleChange('endDate', '');
+                                }
+                              }
+                            }}
                             className={cn(
                               "relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-background hover:bg-white/30 active:scale-95 keyboard-navigation",
                               formData.autoRenewal ? "bg-blue-500" : "bg-white/20"
@@ -1326,7 +1382,7 @@ export function AddEditSubscription() {
                         {formData.tags.length > 0 && (
                           <div className="flex flex-wrap gap-token-xs">
                             {formData.tags.map((tag, index) => (
-                              <div key={index} className="flex items-center space-x-1 px-token-sm py-1 bg-secondary-500/40 border-secondary-400/60 shadow-lg shadow-secondary-500/30 text-white-force rounded-full font-semibold border-2">
+                              <div key={`tag-${tag}-${index}`} className="flex items-center space-x-1 px-token-sm py-1 bg-secondary-500/40 border-secondary-400/60 shadow-lg shadow-secondary-500/30 text-white-force rounded-full font-semibold border-2">
                                 <span className="text-secondary-300 text-xs font-medium">#{tag}</span>
                                 <button
                                   type="button"
@@ -1395,15 +1451,15 @@ export function AddEditSubscription() {
                           icon: AlertCircle,
                           recommended: false
                         }
-                      ].map((notification) => {
+                      ].map((notification, index) => {
                         const IconComponent = notification.icon;
                         const isEnabled = formData.notifications[notification.key];
                         
                         return (
-                          <div key={notification.key}                                 className={cn(
-                                  "p-token-lg glass-light rounded-xl border transition-all duration-300 hover:bg-white/20 hover:border-white/40",
-                                  isEnabled ? "border-secondary-500/40 bg-secondary-500/10" : "border-white/20"
-                                )}>
+                          <div key={`notification-${notification.key}-${index}`} className={cn(
+                            "p-token-lg glass-light rounded-xl border transition-all duration-300 hover:bg-white/20 hover:border-white/40",
+                            isEnabled ? "border-secondary-500/40 bg-secondary-500/10" : "border-white/20"
+                          )}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-start space-x-token-md flex-1">
                                 <div className={cn(
@@ -1540,6 +1596,12 @@ export function AddEditSubscription() {
                         <span className="text-white/60">결제일</span>
                         <span className="text-white-force font-medium">매월 {formData.paymentDay}일</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/60">종료일</span>
+                        <span className="text-white-force font-medium">
+                          {formData.endDate ? formData.endDate : (formData.autoRenewal ? '무제한' : '1개월 후')}
+                        </span>
+                      </div>
                       <div className="flex justify-between border-t border-white/10 pt-token-sm">
                         <span className="text-white/60">월 환산</span>
                         <span className="text-primary-400 font-medium">
@@ -1580,35 +1642,36 @@ export function AddEditSubscription() {
                         </div>
                       </div>
                     </Link>
-                    <div 
-                      className="p-token-md glass-light rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200 cursor-pointer group"
-                      onClick={() => {
-                        setFormData({
-                          serviceName: '',
-                          serviceUrl: '',
-                          logo: '',
-                          logoImage: '',
-                          amount: '',
-                          currency: 'KRW',
-                          paymentCycle: 'monthly',
-                          paymentDay: '1',
-                          paymentMethod: '',
-                          startDate: new Date().toISOString().split('T')[0],
-                          autoRenewal: true,
-                          status: 'active',
-                          category: '엔터테인먼트',
-                          tier: '',
-                          tags: [],
-                          memo: '',
-                          notifications: {
-                            sevenDays: true,
-                            threeDays: true,
-                            sameDay: false
-                          }
-                        });
-                        setErrors({});
-                      }}
-                    >
+                                          <div 
+                        className="p-token-md glass-light rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200 cursor-pointer group"
+                        onClick={() => {
+                          setFormData({
+                            serviceName: '',
+                            serviceUrl: '',
+                            logo: '',
+                            logoImage: '',
+                            amount: '',
+                            currency: 'KRW',
+                            paymentCycle: 'monthly',
+                            paymentDay: '1',
+                            paymentMethod: '',
+                            startDate: new Date().toISOString().split('T')[0],
+                            endDate: '',
+                            autoRenewal: true,
+                            status: 'active',
+                            category: '엔터테인먼트',
+                            tier: '',
+                            tags: [],
+                            memo: '',
+                            notifications: {
+                              sevenDays: true,
+                              threeDays: true,
+                              sameDay: false
+                            }
+                          });
+                          setErrors({});
+                        }}
+                      >
                       <div className="flex items-center space-x-token-sm">
                                                   <div className="p-token-sm bg-warning-500/20 rounded-lg">
                             <RefreshCw size={16} className="text-warning-400 icon-enhanced" />

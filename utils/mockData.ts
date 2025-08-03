@@ -1013,7 +1013,7 @@ export function generateMockSubscriptionStatistics(): SubscriptionStatistics[] {
       id: `stat-${sub.id}`,
       user_id: MOCK_USER_ID,
       subscription_id: sub.id,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0]!,
       monthly_amount_krw: monthlyAmountKrw,
       yearly_amount_krw: yearlyAmountKrw,
       total_paid_krw: monthlyAmountKrw * (index + 1), // 가상 누적 지출
@@ -1057,7 +1057,7 @@ export function generateMockCategoryAnalytics(): CategoryAnalytics[] {
       id: `cat-${index}`,
       user_id: MOCK_USER_ID,
       category,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0]!,
       subscription_count: subscriptionCount,
       active_count: activeCount,
       paused_count: MOCK_SUBSCRIPTIONS.filter(sub => sub.category === category && sub.status === 'paused').length,
@@ -1116,7 +1116,7 @@ export function generateMockPaymentCycleAnalytics(): PaymentCycleAnalytics[] {
       id: `cycle-${index}`,
       user_id: MOCK_USER_ID,
       payment_cycle: cycle,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0]!,
       subscription_count: subscriptionCount,
       active_count: activeCount,
       total_monthly_krw: totalMonthlyKrw,
@@ -1163,7 +1163,7 @@ export function generateMockTagAnalytics(): TagAnalytics[] {
       id: `tag-${index}`,
       user_id: MOCK_USER_ID,
       tag_name: tag,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0]!,
       subscription_count: taggedSubs.length,
       active_count: activeCount,
       total_monthly_krw: totalMonthlyKrw,
@@ -1200,7 +1200,7 @@ export function generateMockMonthlySpendingTrends(): MonthlySpendingTrends[] {
   ];
   
   return months.map((month, index) => {
-    const baseAmount = monthlyPatterns[index];
+    const baseAmount = monthlyPatterns[index] || 50000; // Default base amount if undefined
     const variation = Math.random() * 20000 - 10000; // ±10,000원 변동
     const totalSpendKrw = Math.max(baseAmount + variation, 50000);
     
@@ -1258,7 +1258,7 @@ export function generateMockMonthlySpendingTrends(): MonthlySpendingTrends[] {
       category_spending: categorySpending,
       cycle_spending: cycleSpending,
       currency_spending: currencySpending,
-      month_over_month_change: index > 0 ? ((totalSpendKrw - monthlyPatterns[index - 1]) / monthlyPatterns[index - 1]) * 100 : 0,
+      month_over_month_change: index > 0 && monthlyPatterns[index - 1] ? ((totalSpendKrw - monthlyPatterns[index - 1]!) / monthlyPatterns[index - 1]!) * 100 : 0,
       year_over_year_change: Math.random() * 15 - 5, // -5% ~ +10%
       predicted_next_month: totalSpendKrw * (1 + (Math.random() * 0.1 - 0.05)), // ±5% 예측
       trend_direction: trendDirection,
@@ -1296,7 +1296,7 @@ export function generateMockNotificationAnalytics(): NotificationAnalytics {
   return {
     id: 'notification-analytics-1',
     user_id: MOCK_USER_ID,
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0]!,
     total_subscriptions: totalSubscriptions,
     seven_days_enabled: sevenDaysEnabled,
     three_days_enabled: threeDaysEnabled,
@@ -1366,7 +1366,7 @@ export function generateMockUserBehaviorAnalytics(): UserBehaviorAnalytics {
   return {
     id: 'behavior-analytics-1',
     user_id: MOCK_USER_ID,
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0]!,
     login_count: loginCount,
     subscription_views: subscriptionViews,
     subscription_edits: subscriptionEdits,

@@ -93,7 +93,7 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
             </Button>
             <Button 
               onClick={handleSave} 
-              className="flex-1 hover-button touch-target text-base-ko font-medium tracking-ko-normal focus-ring" 
+              className="flex-1 hover-button touch-target text-base-ko font-medium tracking-ko-normal focus-ring bg-primary-500 hover:bg-primary-600 text-white"
               disabled={isLoading}
             >
               {isLoading ? '저장 중...' : '저장'}

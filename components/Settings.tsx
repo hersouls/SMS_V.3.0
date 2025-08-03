@@ -4,7 +4,10 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useLoadingState } from '../hooks/useLoadingState';
 import { 
   User,
   DollarSign,
@@ -13,62 +16,51 @@ import {
   LogOut,
   Save,
   Check,
-  X,
   AlertTriangle,
   Settings as SettingsIcon,
   Info,
   Eye,
-  EyeOff,
   Trash2,
   RefreshCw,
   Globe,
   Home,
-  Monitor,
-  Smartphone,
-  Lock,
-  Unlock,
   Mail,
   Calendar,
   BarChart3,
   TrendingUp,
-  TrendingDown,
   Activity,
   Zap,
   Archive,
   Download,
-  Upload,
-  Share2,
-  Copy,
   ExternalLink,
-  Star,
-  Heart,
-  Bookmark,
-  PieChart,
-  LineChart,
   Target,
   Award,
-  Sparkles
+  Sparkles,
+  X,
+  Heart,
+  PieChart
 } from 'lucide-react';
 import { cn } from './ui/utils';
 
 export function Settings() {
   const navigate = useNavigate();
-  const { user, settings, updateSettings, logout, subscriptions, refreshData } = useApp();
+  const { user, logout } = useAuth();
+  const { preferences, updatePreferences, subscriptions } = useData();
+  const { handleError } = useErrorHandler();
+  const { isLoading, withLoading } = useLoadingState();
   
   // State management
-  const [localSettings, setLocalSettings] = useState(settings);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localSettings, setLocalSettings] = useState(preferences);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteCountdown, setDeleteCountdown] = useState(0);
   const [activeSection, setActiveSection] = useState<'profile' | 'currency' | 'notifications' | 'security' | 'advanced'>('profile');
-  const [showPasswordField, setShowPasswordField] = useState(false);
+
 
   // Update local settings when global settings change
   useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
+    setLocalSettings(preferences);
+  }, [preferences]);
 
   // Delete confirmation countdown
   useEffect(() => {
@@ -82,47 +74,43 @@ export function Settings() {
 
   // Enhanced refresh function
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshData();
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
+    await withLoading('refresh', async () => {
+      try {
+        console.log('✅ Firebase 실시간 데이터 새로고침');
+      } catch (error) {
+        handleError(error, '데이터 새로고침에 실패했습니다.');
+      }
+    });
   };
 
-  const handleSettingsUpdate = async (newSettings: Partial<typeof settings>) => {
-    setSaveStatus('saving');
-    try {
-      await updateSettings(newSettings);
-      setLocalSettings(prev => ({ ...prev, ...newSettings }));
-      setSaveStatus('saved');
-      
-      // 성공 메시지 표시
-      console.log('설정이 성공적으로 저장되었습니다.');
-    } catch (error) {
-      console.error('Error updating settings:', error);
-      setSaveStatus('error');
-      
-      // 에러 메시지 표시
-      alert('설정 저장에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }
+  const handleSettingsUpdate = async (newSettings: Partial<typeof preferences>) => {
+    await withLoading('save', async () => {
+      try {
+        setSaveStatus('saving');
+        await updatePreferences(newSettings);
+        setLocalSettings((prev: typeof preferences) => ({ ...prev, ...newSettings }));
+        setSaveStatus('saved');
+        console.log('✅ 설정이 성공적으로 저장되었습니다.');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        setSaveStatus('error');
+        handleError(error, '설정 저장에 실패했습니다.');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      }
+    });
   };
 
   // 더 정확한 설정 변경 감지 함수
   const hasSettingsChanged = () => {
     const hasChanged = (
-      localSettings.exchangeRate !== settings.exchangeRate ||
-      JSON.stringify(localSettings.notifications) !== JSON.stringify(settings.notifications)
+      localSettings.exchangeRate !== preferences.exchangeRate ||
+      JSON.stringify(localSettings.notifications) !== JSON.stringify(preferences.notifications)
     );
     console.log('Settings changed:', hasChanged, {
       localExchangeRate: localSettings.exchangeRate,
-      globalExchangeRate: settings.exchangeRate,
+      globalExchangeRate: preferences.exchangeRate,
       localNotifications: localSettings.notifications,
-      globalNotifications: settings.notifications
+      globalNotifications: preferences.notifications
     });
     return hasChanged;
   };
@@ -144,9 +132,9 @@ export function Settings() {
     handleSettingsUpdate({ exchangeRate: rate });
   };
 
-  const handleNotificationChange = (key: keyof typeof settings.notifications, value: boolean) => {
+  const handleNotificationChange = (key: keyof typeof preferences.notifications, value: boolean) => {
     const updatedNotifications = { ...localSettings.notifications, [key]: value };
-    setLocalSettings(prev => ({ ...prev, notifications: updatedNotifications }));
+    setLocalSettings((prev: typeof preferences) => ({ ...prev, notifications: updatedNotifications }));
     
     // 알림 설정 변경 시 즉시 저장
     handleSettingsUpdate({ notifications: updatedNotifications });
@@ -290,7 +278,7 @@ export function Settings() {
                       <span className={cn(
                         "text-xs",
                         saveStatus === 'saved' && "text-white-force",
-                        saveStatus === 'error' && "text-error-400",
+                        saveStatus === 'error' && "text-red-400",
                         saveStatus === 'saving' && "text-primary-400"
                       )}>
                         {getSaveStatusText()}
@@ -312,22 +300,22 @@ export function Settings() {
                 variant="ghost"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={isRefreshing}
+                disabled={isLoading('refresh')}
                 className="hidden md:flex text-white-force/60 hover:text-white-force hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
-                aria-label={isRefreshing ? "데이터 새로고침 중..." : "데이터 새로고침"}
+                aria-label={isLoading('refresh') ? "데이터 새로고침 중..." : "데이터 새로고침"}
               >
-                <RefreshCw size={16} className={cn("mr-token-xs text-white-force icon-enhanced", isRefreshing && "animate-spin")} />
+                <RefreshCw size={16} className={cn("mr-token-xs text-white-force icon-enhanced", isLoading('refresh') && "animate-spin")} />
                 새로고침
               </WaveButton>
 
               <WaveButton 
                 variant="primary" 
                 onClick={() => {
-                  const changedSettings: Partial<typeof settings> = {};
-                  if (localSettings.exchangeRate !== settings.exchangeRate) {
+                  const changedSettings: Partial<typeof preferences> = {};
+                  if (localSettings.exchangeRate !== preferences.exchangeRate) {
                     changedSettings.exchangeRate = localSettings.exchangeRate;
                   }
-                  if (JSON.stringify(localSettings.notifications) !== JSON.stringify(settings.notifications)) {
+                  if (JSON.stringify(localSettings.notifications) !== JSON.stringify(preferences.notifications)) {
                     changedSettings.notifications = localSettings.notifications;
                   }
                   handleSettingsUpdate(changedSettings);
@@ -393,16 +381,16 @@ export function Settings() {
                     <div className={cn(
                       "p-token-sm rounded-lg",
                       stat.color === 'primary' && "bg-primary-500/20",
-                      stat.color === 'success' && "bg-success-500/20",
-                      stat.color === 'warning' && "bg-warning-500/20",
-                      stat.color === 'secondary' && "bg-secondary-500/20"
+                      stat.color === 'success' && "bg-green-500/20",
+                      stat.color === 'warning' && "bg-yellow-500/20",
+                      stat.color === 'secondary' && "bg-blue-500/20"
                     )}>
                       <IconComponent size={20} className={cn(
                         "icon-enhanced",
                         stat.color === 'primary' && "text-primary-400",
                         stat.color === 'success' && "text-white",
-                        stat.color === 'warning' && "text-warning-400",
-                        stat.color === 'secondary' && "text-secondary-400"
+                        stat.color === 'warning' && "text-yellow-400",
+                        stat.color === 'secondary' && "text-blue-400"
                       )} />
                     </div>
                     
@@ -603,7 +591,7 @@ export function Settings() {
                         <WaveButton
                           variant="primary"
                           onClick={() => handleSettingsUpdate({ exchangeRate: localSettings.exchangeRate })}
-                          disabled={localSettings.exchangeRate === settings.exchangeRate || localSettings.exchangeRate <= 0}
+                          disabled={localSettings.exchangeRate === preferences.exchangeRate || localSettings.exchangeRate <= 0}
                           className="px-token-lg hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target"
                         >
                           <Save size={16} className="mr-token-xs text-white-force icon-enhanced" />
@@ -726,7 +714,7 @@ export function Settings() {
                     {/* Enhanced Notification Settings */}
                     {[
                       {
-                        key: 'paymentReminders' as keyof typeof settings.notifications,
+                        key: 'paymentReminders' as keyof typeof preferences.notifications,
                         title: '결제 예정 알림',
                         description: '구독 결제일 전에 미리 알림을 받습니다',
                         icon: Calendar,
@@ -734,7 +722,7 @@ export function Settings() {
                         importance: 'high'
                       },
                       {
-                        key: 'priceChanges' as keyof typeof settings.notifications,
+                        key: 'priceChanges' as keyof typeof preferences.notifications,
                         title: '가격 변동 알림',
                         description: '구독 서비스의 가격이 변경될 때 알림을 받습니다',
                         icon: TrendingUp,
@@ -742,7 +730,7 @@ export function Settings() {
                         importance: 'medium'
                       },
                       {
-                        key: 'subscriptionExpiry' as keyof typeof settings.notifications,
+                        key: 'subscriptionExpiry' as keyof typeof preferences.notifications,
                         title: '구독 만료 알림',
                         description: '구독이 만료되기 전에 미리 알림을 받습니다',
                         icon: AlertTriangle,

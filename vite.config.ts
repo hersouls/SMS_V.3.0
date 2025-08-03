@@ -3,18 +3,26 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
+  const isDevelopment = mode === 'development'
+  const isProduction = mode === 'production'
+  
   const config = {
     plugins: [react()],
     base: '/',
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "@/components": path.resolve(__dirname, "./components"),
+        "@/utils": path.resolve(__dirname, "./utils"),
+        "@/styles": path.resolve(__dirname, "./styles"),
+        "@/public": path.resolve(__dirname, "./public"),
       },
     },
     server: {
       port: 3000,
-      host: '0.0.0.0',
+      // 개발 환경에서만 모든 인터페이스 허용, 프로덕션에서는 localhost만
+      host: isDevelopment ? 'localhost' : 'localhost',
       cors: true,
       hmr: {
         port: 3000,
@@ -34,94 +42,42 @@ export default defineConfig(({ command }) => {
     },
     build: {
       outDir: 'dist',
-      sourcemap: false, // 프로덕션에서는 소스맵 비활성화
-      minify: 'terser', // 더 강력한 압축
+      // 개발 환경에서는 소스맵 활성화, 프로덕션에서는 조건부 활성화
+      sourcemap: isDevelopment ? true : (process.env.GENERATE_SOURCEMAP === 'true'),
+      minify: 'esbuild',
       rollupOptions: {
         output: {
           manualChunks: {
-            // 핵심 라이브러리
             vendor: ['react', 'react-dom'],
-            
-            // 라우팅
             router: ['react-router-dom'],
-            
-            // UI 라이브러리
-            radix: [
-              '@radix-ui/react-dialog',
-              '@radix-ui/react-dropdown-menu',
-              '@radix-ui/react-select',
-              '@radix-ui/react-tabs',
-              '@radix-ui/react-toast',
-              '@radix-ui/react-accordion',
-              '@radix-ui/react-alert-dialog',
-              '@radix-ui/react-aspect-ratio',
-              '@radix-ui/react-avatar',
-              '@radix-ui/react-checkbox',
-              '@radix-ui/react-collapsible',
-              '@radix-ui/react-context-menu',
-              '@radix-ui/react-hover-card',
-              '@radix-ui/react-label',
-              '@radix-ui/react-menubar',
-              '@radix-ui/react-navigation-menu',
-              '@radix-ui/react-popover',
-              '@radix-ui/react-progress',
-              '@radix-ui/react-radio-group',
-              '@radix-ui/react-scroll-area',
-              '@radix-ui/react-separator',
-              '@radix-ui/react-slider',
-              '@radix-ui/react-slot',
-              '@radix-ui/react-switch',
-              '@radix-ui/react-toggle',
-              '@radix-ui/react-toggle-group',
-              '@radix-ui/react-tooltip'
-            ],
-            
-            // 아이콘 라이브러리
-            icons: ['lucide-react'],
-            
-            // 차트 라이브러리
-            charts: ['@nivo/bar', '@nivo/pie', '@nivo/line', '@nivo/core', '@nivo/circle-packing', '@nivo/heatmap', '@nivo/radar', '@nivo/stream'],
-            
-            // 유틸리티 라이브러리
-            utils: ['date-fns', 'clsx', 'class-variance-authority', 'tailwind-merge'],
-            
-            // 폼 관련
-            forms: ['react-hook-form'],
-            
-            // 기타 라이브러리
-            others: ['sonner', 'vaul', 'embla-carousel-react', 'cmdk', 'input-otp', 'react-resizable-panels', 'next-themes']
+            ui: ['lucide-react', '@supabase/supabase-js']
           }
-        }
-      },
-      // Terser 옵션 추가
-      terserOptions: {
-        compress: {
-          drop_console: true, // 콘솔 로그 제거
-          drop_debugger: true,
-          pure_funcs: ['console.log', 'console.info', 'console.debug'],
-          passes: 2
-        },
-        mangle: {
-          toplevel: true
         }
       }
     },
     define: {
-      // 환경 변수 타입 정의
-      'process.env': {}
+      // 환경 변수 타입 정의 - 실제 환경 변수 사용
+      'process.env': {
+        NODE_ENV: JSON.stringify(mode),
+        VITE_SUPABASE_URL: JSON.stringify(process.env.VITE_SUPABASE_URL),
+        VITE_SUPABASE_ANON_KEY: JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
+        VITE_GOOGLE_CLIENT_ID: JSON.stringify(process.env.VITE_GOOGLE_CLIENT_ID),
+        VITE_GOOGLE_CLIENT_SECRET: JSON.stringify(process.env.VITE_GOOGLE_CLIENT_SECRET),
+      }
     },
     // 정적 파일 처리 개선
     publicDir: 'public',
     assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp'],
     // CSS 최적화
     css: {
-      devSourcemap: false
+      devSourcemap: isDevelopment
     }
   }
 
-  // GitHub Pages deployment configuration
+  // Custom domain deployment (sub.moonwave.kr)
+  // GitHub Pages with custom domain doesn't need base path
   if (command !== 'serve') {
-    config.base = '/SMS_V.3.0/'
+    config.base = '/'
   }
 
   return config

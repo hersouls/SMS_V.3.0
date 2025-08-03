@@ -13,19 +13,19 @@ export function FloatingActionButton() {
       icon: CreditCard,
       label: '구독 추가',
       action: () => navigate('/subscriptions/new'),
-      color: 'from-blue-500 to-blue-600'
+      color: 'from-primary-500 to-primary-600'
     },
     {
       icon: Calendar,
       label: '캘린더 보기',
       action: () => navigate('/calendar'),
-      color: 'from-purple-500 to-purple-600'
+      color: 'from-secondary-500 to-secondary-600'
     },
     {
       icon: Settings,
       label: '설정',
       action: () => navigate('/settings'),
-      color: 'from-green-500 to-green-600'
+      color: 'from-success-500 to-success-600'
     }
   ];
 
@@ -52,7 +52,7 @@ export function FloatingActionButton() {
             const Icon = action.icon;
             return (
               <div
-                key={index}
+                key={action.label + '-' + index}
                 className="flex items-center space-x-3"
                 style={{
                   animationDelay: `${index * 0.1}s`

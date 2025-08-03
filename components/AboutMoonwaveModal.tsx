@@ -1,6 +1,7 @@
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
 import { X, ArrowLeft } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 interface AboutMoonwaveModalProps {
   isOpen: boolean;
@@ -8,22 +9,67 @@ interface AboutMoonwaveModalProps {
 }
 
 export function AboutMoonwaveModal({ isOpen, onClose }: AboutMoonwaveModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      // 모달이 열릴 때 포커스를 모달로 이동
+      setTimeout(() => {
+        modalRef.current?.focus();
+      }, 100);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  // 모달 외부 클릭 시 닫기
+  const handleBackdropClick = (event: React.MouseEvent) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      aria-describedby="modal-content"
+    >
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        aria-hidden="true"
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div 
+        ref={modalRef}
+        className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        role="document"
+        tabIndex={-1}
+      >
         <GlassCard variant="strong" className="p-token-2xl glass-breathe">
           {/* Header */}
           <div className="flex items-center justify-between mb-token-xl">
-            <h2 className="text-white-force text-2xl-ko font-bold bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
+            <h2 
+              id="modal-title"
+              className="text-white-force text-2xl-ko font-bold bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent"
+            >
               About Moonwave 전문
             </h2>
             <WaveButton
@@ -31,13 +77,21 @@ export function AboutMoonwaveModal({ isOpen, onClose }: AboutMoonwaveModalProps)
               size="sm"
               onClick={onClose}
               className="p-2"
+              aria-label="모달 닫기"
             >
               <X className="w-5 h-5" />
             </WaveButton>
           </div>
 
           {/* Content */}
-          <div className="space-y-token-xl text-white-force text-base-ko leading-relaxed tracking-ko-normal">
+          <div 
+            id="modal-content"
+            className="space-y-token-xl text-white-force text-base-ko leading-relaxed tracking-ko-normal"
+            style={{ 
+              willChange: 'transform',
+              contain: 'layout style paint'
+            }}
+          >
             <div className="space-y-token-md">
               <h3 className="text-white-force text-2xl-ko font-bold bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
                 🌌 당신만의 파동과 흐름으로 만드는 디지털 혁신
@@ -450,6 +504,7 @@ export function AboutMoonwaveModal({ isOpen, onClose }: AboutMoonwaveModalProps)
               variant="ghost"
               onClick={onClose}
               className="wave-button-ghost-enhanced"
+              aria-label="모달 닫기"
             >
               <ArrowLeft className="w-5 h-5" />
               닫기

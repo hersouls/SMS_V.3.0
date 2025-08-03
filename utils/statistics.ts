@@ -5,7 +5,6 @@ import { supabase } from '../utils/supabase/client';
 // =====================================================
 
 const pendingUpdates = new Map<string, NodeJS.Timeout>();
-const operationQueue = new Map<string, Promise<any>>();
 
 /**
  * 통계 업데이트를 디바운싱하여 중복 호출 방지
@@ -34,26 +33,7 @@ function debounceStatisticsUpdate(
   pendingUpdates.set(key, timer);
 }
 
-/**
- * 동시 통계 작업을 방지하기 위한 큐 관리
- */
-async function queueOperation<T>(
-  operationKey: string,
-  operation: () => Promise<T>
-): Promise<T> {
-  // 이미 진행 중인 작업이 있다면 대기
-  if (operationQueue.has(operationKey)) {
-    await operationQueue.get(operationKey);
-  }
 
-  // 새 작업 등록
-  const promise = operation().finally(() => {
-    operationQueue.delete(operationKey);
-  });
-
-  operationQueue.set(operationKey, promise);
-  return promise;
-}
 
 // =====================================================
 // 통계 데이터 타입 정의
@@ -258,7 +238,7 @@ export async function collectSubscriptionStatistics(
 
     const categoryRank = sortedCategories.findIndex(([cat]) => cat === subscription.category) + 1;
     const categoryPercentage = categoryAmounts[subscription.category] 
-      ? (categoryAmounts[subscription.category] / Object.values(categoryAmounts).reduce((a, b) => a + b, 0)) * 100
+      ? (categoryAmounts[subscription.category] || 0) / (Object.values(categoryAmounts).reduce((a, b) => a + b, 0) || 1) * 100
       : 0;
 
     // 결제주기 순위 계산
@@ -273,13 +253,13 @@ export async function collectSubscriptionStatistics(
 
     const cycleRank = sortedCycles.findIndex(([cycle]) => cycle === subscription.payment_cycle) + 1;
     const cyclePercentage = cycleAmounts[subscription.payment_cycle]
-      ? (cycleAmounts[subscription.payment_cycle] / Object.values(cycleAmounts).reduce((a, b) => a + b, 0)) * 100
+      ? (cycleAmounts[subscription.payment_cycle] || 0) / (Object.values(cycleAmounts).reduce((a, b) => a + b, 0) || 1) * 100
       : 0;
 
     const statistics: SubscriptionStatistics = {
       user_id: userId,
       subscription_id: subscriptionId,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0] || '',
       monthly_amount_krw: monthlyAmountKrw,
       yearly_amount_krw: yearlyAmountKrw,
       total_paid_krw: 0, // 결제 이력에서 계산
@@ -365,7 +345,7 @@ export async function collectCategoryAnalytics(
       analytics.push({
         user_id: userId,
         category,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0] || '',
         subscription_count: typedSubs.length,
         active_count: activeCount,
         paused_count: pausedCount,
@@ -450,7 +430,7 @@ export async function collectPaymentCycleAnalytics(
       analytics.push({
         user_id: userId,
         payment_cycle: cycle,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0] || '',
         subscription_count: typedSubs.length,
         active_count: activeCount,
         total_monthly_krw: totalMonthlyKrw,
@@ -534,7 +514,7 @@ export async function collectTagAnalytics(
       analytics.push({
         user_id: userId,
         tag_name: tag,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0] || '',
         subscription_count: taggedSubs.length,
         active_count: activeCount,
         total_monthly_krw: totalMonthlyKrw,
@@ -694,7 +674,7 @@ export async function collectNotificationAnalytics(
 
     return {
       user_id: userId,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0] || '',
       total_subscriptions: activeSubs.length,
       seven_days_enabled: sevenDaysEnabled,
       three_days_enabled: threeDaysEnabled,
@@ -770,7 +750,7 @@ export async function collectUserBehaviorAnalytics(
 
     return {
       user_id: userId,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0] || '',
       login_count: behaviorData.loginCount || 0,
       subscription_views: behaviorData.subscriptionViews || 0,
       subscription_edits: behaviorData.subscriptionEdits || 0,
@@ -1361,8 +1341,8 @@ export async function generateStatisticsReport(
 export async function getUserStatisticsDashboard(
   userId: string,
   dateRange: { start: string; end: string } = {
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '',
+    end: new Date().toISOString().split('T')[0] || ''
   }
 ): Promise<Array<{
   id?: string;
@@ -1411,7 +1391,7 @@ export async function getUserStatisticsDashboard(
  */
 export async function getCategoryStatistics(
   userId: string,
-  date: string = new Date().toISOString().split('T')[0]
+  date: string = new Date().toISOString().split('T')[0] || ''
 ): Promise<CategoryAnalytics[]> {
   try {
     // Check if analytics table exists

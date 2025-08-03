@@ -4,7 +4,8 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
-import { useApp } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 import { 
   Plus, 
   Search, 
@@ -27,7 +28,8 @@ import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
 
 export function AllSubscriptions() {
-  const { subscriptions, settings, refreshData } = useApp();
+  const { user } = useAuth();
+  const { subscriptions, preferences, loading } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -85,8 +87,8 @@ export function AllSubscriptions() {
           result = a.serviceName.localeCompare(b.serviceName, 'ko');
           break;
         case 'amount':
-          const amountA = a.currency === 'USD' ? a.amount * settings.exchangeRate : a.amount;
-          const amountB = b.currency === 'USD' ? b.amount * settings.exchangeRate : b.amount;
+          const amountA = a.currency === 'USD' ? a.amount * preferences.exchangeRate : a.amount;
+          const amountB = b.currency === 'USD' ? b.amount * preferences.exchangeRate : b.amount;
           
           // Convert to monthly for fair comparison
           const monthlyA = a.paymentCycle === 'yearly' ? amountA / 12 : amountA;
@@ -127,7 +129,7 @@ export function AllSubscriptions() {
     const monthlySpend = subscriptions
       .filter(sub => sub.status === 'active')
       .reduce((total, sub) => {
-        const amount = sub.currency === 'USD' ? sub.amount * settings.exchangeRate : sub.amount;
+        const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
         const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
         return total + monthlyAmount;
       }, 0);
@@ -138,13 +140,14 @@ export function AllSubscriptions() {
       categories: uniqueCategories,
       totalMonthlySpend: monthlySpend
     };
-  }, [subscriptions, searchQuery, selectedStatus, selectedCategory, sortBy, sortOrder, settings.exchangeRate]);
+      }, [subscriptions, searchQuery, selectedStatus, selectedCategory, sortBy, sortOrder, preferences.exchangeRate]);
 
-  // Enhanced refresh function
+  // Enhanced refresh function  
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshData();
+      // Firebase 실시간 데이터이므로 별도 새로고침 불필요
+      console.log('✅ Firebase 실시간 데이터 새로고침');
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -175,9 +178,9 @@ export function AllSubscriptions() {
       case 'active':
         return <CheckCircle size={16} className="icon-enhanced text-white" />;
       case 'paused':
-        return <PauseCircle size={16} className="icon-enhanced text-warning-400" />;
+        return <PauseCircle size={16} className="text-white-force" />;
       case 'cancelled':
-        return <XCircle size={16} className="icon-enhanced text-error-400" />;
+        return <XCircle size={16} className="text-white-force" />;
       default:
         return <Clock size={16} className="icon-enhanced text-white-force" />;
     }
@@ -195,11 +198,11 @@ export function AllSubscriptions() {
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-success-500/20 text-white border-success-500/30';
+        return 'bg-green-500/20 text-white border-green-500/30';
       case 'paused':
-        return 'bg-warning-500/20 text-warning-300 border-warning-500/30';
+        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
       case 'cancelled':
-        return 'bg-error-500/20 text-error-300 border-error-500/30';
+        return 'bg-red-500/20 text-red-300 border-red-500/30';
       default:
         return 'bg-white/10 text-white/70 border-white/20';
     }
@@ -223,7 +226,7 @@ export function AllSubscriptions() {
   };
 
   const getMonthlyAmount = (subscription: any) => {
-    const amount = subscription.currency === 'USD' ? subscription.amount * settings.exchangeRate : subscription.amount;
+    const amount = subscription.currency === 'USD' ? subscription.amount * preferences.exchangeRate : subscription.amount;
     return subscription.paymentCycle === 'yearly' ? amount / 12 : amount;
   };
 
@@ -313,13 +316,13 @@ export function AllSubscriptions() {
                 icon: XCircle,
                 change: null
               }
-            ].map((stat) => {
+            ].map((stat, index) => {
               const IconComponent = stat.icon;
               const isSelected = selectedStatus === stat.key;
               
               return (
                 <GlassCard 
-                  key={stat.key} 
+                  key={stat.key + '-' + index} 
                   variant={isSelected ? "strong" : "light"} 
                   className={cn(
                     "p-token-lg cursor-pointer transition-all duration-300 hover:border-white/30 hover:scale-105 group hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 focus:outline-none",
@@ -331,16 +334,16 @@ export function AllSubscriptions() {
                     <div className={cn(
                       "p-token-sm rounded-lg",
                       stat.color === 'primary' && "bg-primary-500/20",
-                      stat.color === 'success' && "bg-success-500/20",
-                      stat.color === 'warning' && "bg-warning-500/20",
-                      stat.color === 'error' && "bg-error-500/20"
+                      stat.color === 'success' && "bg-green-500/20",
+                      stat.color === 'warning' && "bg-yellow-500/20",
+                      stat.color === 'error' && "bg-red-500/20"
                     )}>
                       <IconComponent size={20} className={cn(
                         "icon-enhanced",
                         stat.color === 'primary' && "text-primary-400",
                         stat.color === 'success' && "text-white-force",
-                        stat.color === 'warning' && "text-warning-400",
-                        stat.color === 'error' && "text-error-400"
+                        stat.color === 'warning' && "text-yellow-400",
+                        stat.color === 'error' && "text-red-400"
                       )} />
                     </div>
                     
@@ -396,8 +399,8 @@ export function AllSubscriptions() {
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     className="px-token-md py-token-sm bg-white/5 border border-white/10 rounded-lg text-white-force focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all duration-200 text-base-ko"
                   >
-                    {categories.map(category => (
-                      <option key={category} value={category} className="bg-gray-800 text-white-force">
+                    {categories.map((category, index) => (
+                      <option key={category + '-' + index} value={category} className="bg-gray-800 text-white-force">
                         {category === 'all' ? '전체 카테고리' : category}
                       </option>
                     ))}
@@ -505,14 +508,14 @@ export function AllSubscriptions() {
                 ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-token-lg" 
                 : "space-y-token-sm"
             )}>
-              {filteredSubscriptions.map((subscription) => {
+              {filteredSubscriptions.map((subscription, index) => {
                 const phaseColors = getPhaseColors(getCategoryPhase(subscription.category));
                 const daysUntilPayment = getNextPaymentDate(subscription);
                 const monthlyAmount = getMonthlyAmount(subscription);
                 
                 return (
                   <GlassCard 
-                    key={subscription.id} 
+                    key={subscription.id + '-' + index} 
                     variant="strong" 
                     className={cn(
                       "group hover:border-white/30 transition-all duration-300 hover:scale-105 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 focus:outline-none",
@@ -567,7 +570,7 @@ export function AllSubscriptions() {
                                 {monthlyAmount.toLocaleString('ko-KR')}원
                               </span>
                               {subscription.paymentCycle === 'yearly' && (
-                                <p className="text-xs text-warning-400">연간 할인</p>
+                                <p className="text-xs text-yellow-400">연간 할인</p>
                               )}
                             </div>
                           </div>
@@ -576,8 +579,8 @@ export function AllSubscriptions() {
                             <span className="text-white-force text-sm-ko">다음 결제</span>
                             <span className={cn(
                               "text-sm-ko font-medium",
-                              daysUntilPayment <= 3 ? "text-warning-400" :
-                              daysUntilPayment <= 7 ? "text-info-400" : "text-white-force"
+                              daysUntilPayment <= 3 ? "text-yellow-400" :
+                              daysUntilPayment <= 7 ? "text-blue-400" : "text-white-force"
                             )}>
                               {daysUntilPayment === 0 ? '오늘' : 
                                daysUntilPayment === 1 ? '내일' : 
@@ -598,8 +601,8 @@ export function AllSubscriptions() {
                           {/* Tags */}
                           {subscription.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-token-sm">
-                              {subscription.tags.slice(0, 2).map((tag, index) => (
-                                <span key={index} className="px-2 py-0.5 bg-secondary-500/40 border-secondary-400/60 shadow-lg shadow-secondary-500/30 text-white text-xs rounded-full font-semibold border-2">
+                              {subscription.tags.slice(0, 2).map((tag, tagIndex) => (
+                                <span key={`tag-${tag}-${tagIndex}`} className="px-2 py-0.5 bg-secondary-500/40 border-secondary-400/60 shadow-lg shadow-secondary-500/30 text-white text-xs rounded-full font-semibold border-2">
                                   #{tag}
                                 </span>
                               ))}
@@ -678,8 +681,8 @@ export function AllSubscriptions() {
                                 <span>매월 {subscription.paymentDay}일</span>
                                 <span>•</span>
                                 <span className={cn(
-                                  daysUntilPayment <= 3 ? "text-warning-400" :
-                                  daysUntilPayment <= 7 ? "text-info-400" : "text-white-force"
+                                  daysUntilPayment <= 3 ? "text-yellow-400" :
+                                  daysUntilPayment <= 7 ? "text-blue-400" : "text-white-force"
                                 )}>
                                   {daysUntilPayment === 0 ? '오늘 결제' : 
                                    daysUntilPayment === 1 ? '내일 결제' : 
