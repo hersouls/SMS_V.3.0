@@ -9,6 +9,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   updateProfile,
+  signInAnonymously,
   User,
   UserCredential,
   onAuthStateChanged,
@@ -82,6 +83,18 @@ export const authService = {
       return userCredential;
     } catch (error) {
       console.error('❌ Google 로그인 실패:', error);
+      throw error;
+    }
+  },
+
+  // 익명 로그인
+  async signInAnonymously(): Promise<UserCredential> {
+    try {
+      const userCredential = await signInAnonymously(auth);
+      console.log('✅ 익명 로그인 성공:', userCredential.user.uid);
+      return userCredential;
+    } catch (error) {
+      console.error('❌ 익명 로그인 실패:', error);
       throw error;
     }
   },
@@ -241,6 +254,10 @@ export const getAuthErrorMessage = (error: AuthError): string => {
       return '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
     case 'auth/network-request-failed':
       return '네트워크 연결을 확인해주세요.';
+    case 'auth/operation-not-allowed':
+      return '익명 로그인이 활성화되지 않았습니다.';
+    case 'auth/admin-restricted-operation':
+      return '관리자에 의해 제한된 작업입니다.';
     default:
       return '인증 중 오류가 발생했습니다. 다시 시도해주세요.';
   }
