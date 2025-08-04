@@ -104,13 +104,27 @@ export const checkFirebaseConnection = async () => {
 
     console.log('🔍 Firebase 연결 확인 중...');
     
-    // Firestore 연결 테스트
-    const testDoc = await db.collection('test').doc('connection-test').get();
-    
-    console.log('✅ Firebase 연결 성공');
-    return { connected: true, error: null };
+    // Firestore 연결 테스트 - 더 안전한 방법으로 변경
+    try {
+      // 간단한 쿼리로 연결 테스트
+      const testQuery = db.collection('_test_connection').limit(1);
+      await testQuery.get();
+      
+      console.log('✅ Firebase 연결 성공');
+      return { connected: true, error: null };
+    } catch (firestoreError) {
+      // 권한 오류는 연결은 되지만 권한이 없는 경우
+      if (firestoreError.code === 'permission-denied') {
+        console.log('✅ Firebase 연결됨 (권한 없음)');
+        return { connected: true, error: 'Permission denied' };
+      }
+      
+      // 다른 오류는 연결 실패로 간주
+      console.error('❌ Firebase 연결 오류:', firestoreError);
+      return { connected: false, error: firestoreError.message };
+    }
   } catch (error) {
-    console.error('❌ Firebase 연결 오류:', error);
+    console.error('❌ Firebase 연결 확인 중 오류:', error);
     return { connected: false, error: error.message };
   }
 };
