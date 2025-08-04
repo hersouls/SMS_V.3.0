@@ -101,6 +101,13 @@ export default defineConfig(({ command, mode }) => {
   // Set base path for production builds
   if (isProduction) {
     config.base = '/'
+    // 프로덕션 환경에서 올바른 도메인 설정
+    config.define = {
+      ...config.define,
+      'process.env.VITE_APP_URL': JSON.stringify('https://sub.moonwave.kr'),
+      'process.env.VITE_APP_NAME': JSON.stringify('SMS V.3.0'),
+      'process.env.VITE_APP_VERSION': JSON.stringify('3.0.0'),
+    }
   }
 
   return config
