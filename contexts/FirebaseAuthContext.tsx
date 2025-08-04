@@ -12,6 +12,7 @@ interface FirebaseAuthContextType {
   login: (email: string, password?: string) => Promise<{ success: boolean; message?: string }>;
   loginWithGoogle: () => Promise<void>;
   loginWithMagicLink: (email: string) => Promise<void>;
+  loginAnonymously: () => Promise<void>;
   signup: (email: string, password: string, displayName?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (displayName?: string, photoURL?: string) => Promise<void>;
@@ -105,6 +106,11 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
     await authService.signInWithGoogle();
   };
 
+  // 익명 로그인
+  const loginAnonymously = async (): Promise<void> => {
+    await authService.signInAnonymously();
+  };
+
   // 회원가입
   const signup = async (email: string, password: string, displayName?: string): Promise<void> => {
     await authService.signUpWithEmail(email, password, displayName);
@@ -144,6 +150,7 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
     login,
     loginWithGoogle,
     loginWithMagicLink,
+    loginAnonymously,
     signup,
     logout,
     updateProfile,
