@@ -21,7 +21,8 @@ console.log('🔍 Firebase 환경 변수 확인:', {
   hasProjectId: !!firebaseConfig.projectId,
   hasStorageBucket: !!firebaseConfig.storageBucket,
   hasMessagingSenderId: !!firebaseConfig.messagingSenderId,
-  hasAppId: !!firebaseConfig.appId
+  hasAppId: !!firebaseConfig.appId,
+  isDevelopment: import.meta.env.DEV
 });
 
 // Firebase 앱 초기화 (환경 변수가 없어도 초기화 시도)
@@ -35,6 +36,10 @@ try {
   if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
     console.warn('⚠️ Firebase 환경 변수가 설정되지 않았습니다. Supabase를 사용합니다.');
     console.warn('Firebase 설정이 필요한 경우 .env 파일에 Firebase 환경 변수를 추가하세요.');
+    console.warn('예시:');
+    console.warn('VITE_FIREBASE_API_KEY=your_api_key');
+    console.warn('VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com');
+    console.warn('VITE_FIREBASE_PROJECT_ID=your_project_id');
     
     // 더미 설정으로 초기화 (실제 사용하지 않음)
     firebaseConfig.apiKey = 'dummy-api-key';
@@ -94,7 +99,7 @@ export const checkFirebaseConnection = async () => {
   try {
     if (!db) {
       console.log('ℹ️ Firebase가 설정되지 않았습니다.');
-      return false;
+      return { connected: false, error: 'Firebase not configured' };
     }
 
     console.log('🔍 Firebase 연결 확인 중...');
@@ -103,10 +108,10 @@ export const checkFirebaseConnection = async () => {
     const testDoc = await db.collection('test').doc('connection-test').get();
     
     console.log('✅ Firebase 연결 성공');
-    return true;
+    return { connected: true, error: null };
   } catch (error) {
     console.error('❌ Firebase 연결 오류:', error);
-    return false;
+    return { connected: false, error: error.message };
   }
 };
 
@@ -129,7 +134,7 @@ export const checkAuthStatus = async () => {
   try {
     if (!auth) {
       console.log('ℹ️ Firebase Auth가 설정되지 않았습니다.');
-      return { isAuthenticated: false, user: null, error: null };
+      return { isAuthenticated: false, user: null, error: 'Firebase Auth not configured' };
     }
 
     const user = auth.currentUser;
@@ -152,7 +157,7 @@ export const checkAuthStatus = async () => {
     };
   } catch (error) {
     console.error('❌ 인증 상태 확인 실패:', error);
-    return { isAuthenticated: false, user: null, error };
+    return { isAuthenticated: false, user: null, error: error.message };
   }
 };
 
