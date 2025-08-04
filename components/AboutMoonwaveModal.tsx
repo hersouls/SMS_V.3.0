@@ -272,7 +272,7 @@ export function AboutMoonwaveModal({ isOpen, onClose }: AboutMoonwaveModalProps)
                     <h5 className="text-white-force text-base-ko font-semibold">데이터의 흐름</h5>
                     <ul className="list-disc list-inside space-y-token-xs">
                       <li className="text-white-force text-base-ko opacity-90 leading-relaxed tracking-ko-normal">
-                        <strong>Supabase, Firebase</strong>: 실시간으로 흐르는 데이터
+                        <strong>Firebase</strong>: 실시간으로 흐르는 데이터
                       </li>
                       <li className="text-white-force text-base-ko opacity-90 leading-relaxed tracking-ko-normal">
                         <strong>Vercel</strong>: 빠르고 안정적인 배포의 흐름

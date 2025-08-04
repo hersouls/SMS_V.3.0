@@ -122,7 +122,7 @@ export function AboutUs() {
     {
       category: '흐름을 만드는 인프라',
       items: [
-        { name: 'Supabase, Firebase', description: '실시간으로 흐르는 데이터' },
+        { name: 'Firebase', description: '실시간으로 흐르는 데이터' },
         { name: 'Vercel', description: '빠르고 안정적인 배포의 흐름' },
         { name: 'Make, n8n', description: '끊김 없는 업무 프로세스' }
       ],

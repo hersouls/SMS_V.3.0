@@ -99,7 +99,7 @@ export function OAuthDebugger() {
                   <p className="mb-2"><strong>Google OAuth 오류 해결 방법:</strong></p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
                     <li>Google Cloud Console에서 승인된 리다이렉트 URI 확인</li>
-                    <li>Supabase Dashboard에서 Site URL과 Redirect URLs 설정</li>
+                    <li>Firebase Console에서 Site URL과 Redirect URLs 설정</li>
                     <li>환경 변수 VITE_GOOGLE_CLIENT_ID 확인</li>
                     <li>브라우저 캐시 및 쿠키 삭제</li>
                     <li>애플리케이션 재시작</li>

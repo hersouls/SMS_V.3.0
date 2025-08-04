@@ -22,7 +22,7 @@ const TermsOfService = React.lazy(() => import('./components/TermsOfService').th
 const FirebaseDebugger = React.lazy(() => import('./components/FirebaseDebugger').then(module => ({ default: module.default })));
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 const AuthCallback = React.lazy(() => import('./components/AuthCallback').then(module => ({ default: module.AuthCallback })));
-const SupabaseTestDashboard = React.lazy(() => import('./components/SupabaseTestDashboard').then(module => ({ default: module.SupabaseTestDashboard })));
+
 const MusicPlayer = React.lazy(() => import('./components/MusicPlayer').then(module => ({ default: module.MusicPlayer })));
 
 
@@ -60,7 +60,7 @@ import {
 
 } from './utils/statistics';
 
-// Supabase 테스트 도구 (개발 모드에서만) - 사용되지 않으므로 주석 처리
+
 // Firebase auth and data hooks
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
 import { useAuth } from './contexts/AuthContext';
