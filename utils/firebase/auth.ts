@@ -3,25 +3,17 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
   signInWithPopup,
   GoogleAuthProvider,
   updateProfile,
   User,
   UserCredential,
   onAuthStateChanged,
-  AuthError,
-  ActionCodeSettings
+  AuthError
 } from 'firebase/auth';
 import { auth } from './config';
 
-// Magic Link 설정
-const actionCodeSettings: ActionCodeSettings = {
-  url: window.location.origin + '/auth-callback',
-  handleCodeInApp: true,
-};
+
 
 // Google OAuth Provider 설정
 const googleProvider = new GoogleAuthProvider();
@@ -30,49 +22,6 @@ googleProvider.addScope('profile');
 
 // 인증 서비스
 export const authService = {
-  // Magic Link 로그인 이메일 전송
-  async sendMagicLink(email: string): Promise<void> {
-    try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      // 이메일을 로컬 스토리지에 저장 (확인용)
-      window.localStorage.setItem('emailForSignIn', email);
-      console.log('✅ Magic Link 이메일 전송 성공:', email);
-    } catch (error) {
-      console.error('❌ Magic Link 이메일 전송 실패:', error);
-      throw error;
-    }
-  },
-
-  // Magic Link로 로그인 완료
-  async signInWithMagicLink(url?: string): Promise<UserCredential> {
-    try {
-      const currentUrl = url || window.location.href;
-      
-      if (!isSignInWithEmailLink(auth, currentUrl)) {
-        throw new Error('유효하지 않은 로그인 링크입니다.');
-      }
-
-      let email = window.localStorage.getItem('emailForSignIn');
-      
-      if (!email) {
-        email = window.prompt('확인을 위해 이메일 주소를 입력해주세요:');
-        if (!email) {
-          throw new Error('이메일이 필요합니다.');
-        }
-      }
-
-      const userCredential = await signInWithEmailLink(auth, email, currentUrl);
-      
-      // 로컬 스토리지에서 이메일 제거
-      window.localStorage.removeItem('emailForSignIn');
-      
-      console.log('✅ Magic Link 로그인 성공:', userCredential.user.email);
-      return userCredential;
-    } catch (error) {
-      console.error('❌ Magic Link 로그인 실패:', error);
-      throw error;
-    }
-  },
 
   // Google OAuth 로그인
   async signInWithGoogle(): Promise<UserCredential> {

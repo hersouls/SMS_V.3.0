@@ -7,8 +7,6 @@ import { Toaster } from 'sonner';
 // Lazy load components for better performance
 const Login = React.lazy(() => import('./components/Login').then(module => ({ default: module.Login })));
 const Signup = React.lazy(() => import('./components/Signup').then(module => ({ default: module.Signup })));
-const MagicLinkLogin = React.lazy(() => import('./components/MagicLinkLogin').then(module => ({ default: module.MagicLinkLogin })));
-const MagicLinkSignup = React.lazy(() => import('./components/MagicLinkSignup').then(module => ({ default: module.MagicLinkSignup })));
 const Dashboard = React.lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
 const AllSubscriptions = React.lazy(() => import('./components/AllSubscriptions').then(module => ({ default: module.AllSubscriptions })));
 const AddEditSubscription = React.lazy(() => import('./components/AddEditSubscription').then(module => ({ default: module.AddEditSubscription })));
@@ -1387,8 +1385,6 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
-                <Route path="/magic-login" element={<MagicLinkLogin />} />
-                <Route path="/magic-signup" element={<MagicLinkSignup />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

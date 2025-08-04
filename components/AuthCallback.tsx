@@ -11,46 +11,15 @@ export function AuthCallback() {
   const [success, setSuccess] = useState(false);
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
-  const { confirmMagicLink, user: authUser } = useAuth();
+  const { user: authUser } = useAuth();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('🔄 AuthCallback: Firebase Magic Link 콜백 처리 시작');
+        console.log('🔄 AuthCallback: OAuth 콜백 처리 시작');
         
         const currentUrl = window.location.href;
         console.log('📋 AuthCallback: 현재 URL:', currentUrl);
-        
-        // Firebase Magic Link 확인
-        if (currentUrl.includes('__firebase')) {
-          console.log('✅ Firebase Magic Link 감지됨');
-          
-          try {
-            const result = await confirmMagicLink(currentUrl);
-            
-            if (result.user) {
-              console.log('✅ Magic Link 인증 성공:', result.user.email);
-              setUser(result.user);
-              setSuccess(true);
-              
-              // 2초 후 대시보드로 리다이렉트
-              setTimeout(() => {
-                navigate('/dashboard', { replace: true });
-              }, 2000);
-            } else {
-              console.error('❌ Magic Link 처리 실패:', result.error);
-              setError(result.error?.message || 'Magic Link 인증에 실패했습니다.');
-            }
-            
-            setIsProcessing(false);
-            return;
-          } catch (magicLinkError) {
-            console.error('❌ Magic Link 처리 실패:', magicLinkError);
-            setError('Magic Link 인증에 실패했습니다. 다시 시도해주세요.');
-            setIsProcessing(false);
-            return;
-          }
-        }
         
         // 일반적인 콜백 URL 확인 (Google OAuth 등)
         const urlParams = new URLSearchParams(window.location.search);
@@ -94,7 +63,7 @@ export function AuthCallback() {
     };
 
     handleAuthCallback();
-  }, [navigate, confirmMagicLink]);
+  }, [navigate, authUser]);
 
   // 에러가 있으면 에러 화면 표시
   if (error) {
@@ -156,7 +125,7 @@ export function AuthCallback() {
               </p>
               <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-4">
                 <p className="text-xs text-green-200">
-                  ✨ Magic Link 인증이 성공적으로 완료되었습니다.
+                  ✨ 인증이 성공적으로 완료되었습니다.
                 </p>
               </div>
             </div>

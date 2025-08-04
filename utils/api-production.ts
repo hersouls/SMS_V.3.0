@@ -59,12 +59,12 @@ class ProductionApiService {
   }
 
   // =====================================================
-  // 인증 API (Magic Link 지원)
+  // 인증 API
   // =====================================================
 
-  async sendMagicLink(email: string, isSignup: boolean = false) {
+  async signup(email: string, password: string, name?: string) {
     try {
-      console.log('📧 Magic link 전송 중:', { email, isSignup });
+      console.log('📧 회원가입 시도:', { email, name });
       
       // 데이터베이스 연결 상태 확인
       const isConnected = await checkSupabaseConnection();
@@ -72,61 +72,87 @@ class ProductionApiService {
         throw new Error('데이터베이스 연결에 실패했습니다. 네트워크 연결을 확인해주세요.');
       }
       
-      // 개발 환경에서는 localhost 사용
-      let redirectUrl;
-      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        redirectUrl = `http://localhost:3003/auth/callback`;
-      } else {
-        redirectUrl = `${window.location.origin}/auth/callback`;
-      }
-      
-      console.log('🔗 Magic link redirect URL:', redirectUrl);
-      
-      const { data, error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signUp({
         email,
+        password,
         options: {
-          emailRedirectTo: redirectUrl,
-          data: isSignup ? { is_signup: true } : undefined
+          data: {
+            name: name || null
+          }
         }
       });
 
       if (error) {
-        console.error('❌ Magic link 오류:', error);
+        console.error('❌ 회원가입 오류:', error);
         throw error;
       }
 
-      console.log('✅ Magic link 전송 성공:', data);
+      console.log('✅ 회원가입 성공:', data);
       return { 
         success: true, 
-        message: '이메일로 로그인 링크를 전송했습니다. 이메일을 확인해주세요.',
+        message: '회원가입이 완료되었습니다. 이메일을 확인해주세요.',
         email 
       };
     } catch (error: any) {
-      console.error('❌ Magic link 오류 상세:', error);
+      console.error('❌ 회원가입 오류 상세:', error);
       
       // 구체적인 에러 메시지 제공
       if (error.message?.includes('invalid email') || error.message?.includes('Invalid email')) {
         throw new Error('올바른 이메일 형식을 입력해주세요.');
       }
       
-      if (error.message?.includes('rate limit')) {
-        throw new Error('너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.');
+      if (error.message?.includes('weak password')) {
+        throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
       }
       
-      throw new Error(error.message || 'Magic link 전송에 실패했습니다.');
+      if (error.message?.includes('already registered')) {
+        throw new Error('이미 등록된 이메일입니다.');
+      }
+      
+      throw new Error(error.message || '회원가입에 실패했습니다.');
     }
   }
 
-  // Magic Link 기반 회원가입 (레거시 호환성)
-  async signup(email: string, password?: string, name?: string) {
-    // Magic Link 방식으로 리다이렉트
-    return await this.sendMagicLink(email, true);
-  }
+  async login(email: string, password: string) {
+    try {
+      console.log('📧 로그인 시도:', { email });
+      
+      // 데이터베이스 연결 상태 확인
+      const isConnected = await checkSupabaseConnection();
+      if (!isConnected) {
+        throw new Error('데이터베이스 연결에 실패했습니다. 네트워크 연결을 확인해주세요.');
+      }
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-  // Magic Link 기반 로그인 (레거시 호환성)
-  async login(email: string, password?: string) {
-    // Magic Link 방식으로 리다이렉트
-    return await this.sendMagicLink(email, false);
+      if (error) {
+        console.error('❌ 로그인 오류:', error);
+        throw error;
+      }
+
+      console.log('✅ 로그인 성공:', data);
+      return { 
+        success: true, 
+        message: '로그인이 완료되었습니다.',
+        email 
+      };
+    } catch (error: any) {
+      console.error('❌ 로그인 오류 상세:', error);
+      
+      // 구체적인 에러 메시지 제공
+      if (error.message?.includes('invalid email') || error.message?.includes('Invalid email')) {
+        throw new Error('올바른 이메일 형식을 입력해주세요.');
+      }
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+      }
+      
+      throw new Error(error.message || '로그인에 실패했습니다.');
+    }
   }
 
   // =====================================================

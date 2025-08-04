@@ -118,44 +118,7 @@ export const signUpWithEmail = async (email: string, password: string) => {
   }
 };
 
-export const signInWithMagicLink = async (email: string) => {
-  try {
-    const actionCodeSettings = {
-      url: `${getCurrentDomain()}/auth/callback`,
-      handleCodeInApp: true,
-    };
-    
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    window.localStorage.setItem('emailForSignIn', email);
-    console.log('✅ Magic Link 발송 성공');
-    return { success: true, error: null };
-  } catch (error: any) {
-    console.error('❌ Magic Link 발송 실패:', error);
-    return { success: false, error };
-  }
-};
 
-export const confirmMagicLink = async (url: string) => {
-  try {
-    if (isSignInWithEmailLink(auth, url)) {
-      let email = window.localStorage.getItem('emailForSignIn');
-      if (!email) {
-        email = window.prompt('확인을 위해 이메일 주소를 입력해주세요:');
-      }
-      
-      if (email) {
-        const result = await signInWithEmailLink(auth, email, url);
-        window.localStorage.removeItem('emailForSignIn');
-        console.log('✅ Magic Link 로그인 성공:', result.user.uid);
-        return { user: result.user, error: null };
-      }
-    }
-    return { user: null, error: new Error('유효하지 않은 Magic Link입니다.') };
-  } catch (error: any) {
-    console.error('❌ Magic Link 로그인 실패:', error);
-    return { user: null, error };
-  }
-};
 
 export const signInWithGoogle = async () => {
   try {

@@ -9,9 +9,8 @@ interface FirebaseAuthContextType {
   userProfile: any | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password?: string) => Promise<{ success: boolean; message?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   loginWithGoogle: () => Promise<void>;
-  loginWithMagicLink: (email: string) => Promise<void>;
   signup: (email: string, password: string, displayName?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (displayName?: string, photoURL?: string) => Promise<void>;
@@ -74,26 +73,11 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
     return unsubscribe;
   }, []);
 
-  // Magic Link 로그인
-  const loginWithMagicLink = async (email: string): Promise<void> => {
-    await authService.sendMagicLink(email);
-  };
-
   // 이메일/비밀번호 로그인
-  const login = async (email: string, password?: string): Promise<{ success: boolean; message?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
-      if (!password) {
-        // Magic Link 방식
-        await loginWithMagicLink(email);
-        return { 
-          success: true, 
-          message: 'Magic Link가 이메일로 전송되었습니다.' 
-        };
-      } else {
-        // 이메일/비밀번호 방식
-        await authService.signInWithEmail(email, password);
-        return { success: true };
-      }
+      await authService.signInWithEmail(email, password);
+      return { success: true };
     } catch (error: any) {
       console.error('로그인 실패:', error);
       throw new Error(error.message || '로그인에 실패했습니다.');
@@ -143,7 +127,6 @@ export function FirebaseAuthProvider({ children }: FirebaseAuthProviderProps) {
     isLoading,
     login,
     loginWithGoogle,
-    loginWithMagicLink,
     signup,
     logout,
     updateProfile,

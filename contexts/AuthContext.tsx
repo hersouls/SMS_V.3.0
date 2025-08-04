@@ -4,8 +4,6 @@ import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { 
   signInWithEmail,
   signUpWithEmail,
-  signInWithMagicLink,
-  confirmMagicLink,
   signInWithGoogle,
   signOutUser
 } from '../utils/firebase/client';
@@ -16,8 +14,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
   signUp: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
-  signInWithMagicLink: (email: string) => Promise<{ success: boolean; error: any }>;
-  confirmMagicLink: (url: string) => Promise<{ user: User | null; error: any }>;
   signInWithGoogle: () => Promise<{ user: User | null; error: any }>;
   signOut: () => Promise<{ success: boolean; error: any }>;
 }
@@ -49,15 +45,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return await signUpWithEmail(email, password);
   };
 
-  const handleSignInWithMagicLink = async (email: string) => {
-    console.log('🔑 Magic Link 로그인 시도:', email);
-    return await signInWithMagicLink(email);
-  };
 
-  const handleConfirmMagicLink = async (url: string) => {
-    console.log('🔑 Magic Link 확인 시도');
-    return await confirmMagicLink(url);
-  };
 
   const handleSignInWithGoogle = async () => {
     console.log('🔑 Google 로그인 시도');
@@ -75,8 +63,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     signIn: handleSignIn,
     signUp: handleSignUp,
-    signInWithMagicLink: handleSignInWithMagicLink,
-    confirmMagicLink: handleConfirmMagicLink,
     signInWithGoogle: handleSignInWithGoogle,
     signOut: handleSignOut
   };
