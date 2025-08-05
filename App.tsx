@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, Suspense } from 'react';
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Waves } from 'lucide-react';
 import { Toaster } from 'sonner';
 
@@ -355,9 +355,11 @@ export const useApp = () => {
   return context;
 };
 
-function AppProvider({ children }: { children: ReactNode }) {
+function AppProviderContent({ children }: { children: ReactNode }) {
   // AuthContext에서 인증 상태 가져오기
   const { user: authUser, loading: authLoading, isAuthenticated, signIn, signInWithGoogle, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   
   const [user, setUser] = useState<User | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -448,6 +450,21 @@ function AppProvider({ children }: { children: ReactNode }) {
       });
     } else {
       console.log('❌ App: AuthContext에서 로그아웃 상태 감지, App Context 초기화');
+      
+      // 즉시 로그인 페이지로 리다이렉트 (보호된 경로에 있는 경우)
+      const currentPath = location.pathname;
+      const protectedPaths = ['/dashboard', '/subscriptions', '/calendar', '/notifications', '/statistics', '/settings', '/music'];
+      const isOnProtectedPath = protectedPaths.some(path => currentPath.startsWith(path)) || currentPath === '/';
+      
+      if (isOnProtectedPath && currentPath !== '/login') {
+        console.log('🔄 App: 보호된 경로에서 로그아웃 감지, 강제 리다이렉트', {
+          from: currentPath,
+          to: '/login'
+        });
+        navigate('/login', { replace: true });
+        return;
+      }
+      
       setUser(null);
       setSubscriptions([]);
       setNotifications([]);
@@ -1075,10 +1092,26 @@ function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
+function AppProvider({ children }: { children: ReactNode }) {
+  return (
+    <Router 
+      basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <AppProviderContent>
+        {children}
+      </AppProviderContent>
+    </Router>
+  );
+}
+
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const context = useContext(AppContext);
   
-  console.log('🛡️ ProtectedRoute: 렌더링 시작', { hasContext: !!context });
+  console.log('🛡️ ProtectedRoute: 렌더링 시작', { 
+    hasContext: !!context,
+    currentPath: window.location.pathname
+  });
   
   if (!context) {
     console.log('❌ ProtectedRoute: context가 없음, 로딩 화면 표시');
@@ -1098,7 +1131,11 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   
   const { isAuthenticated, isLoading } = context;
   
-  console.log('🛡️ ProtectedRoute: 상태 확인', { isAuthenticated, isLoading });
+  console.log('🛡️ ProtectedRoute: 상태 확인', { 
+    isAuthenticated, 
+    isLoading,
+    currentPath: window.location.pathname
+  });
   
   if (isLoading) {
     console.log('⏳ ProtectedRoute: 로딩 중, 로딩 화면 표시');
@@ -1119,10 +1156,20 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   console.log('🛡️ ProtectedRoute: 최종 결정', { 
     isAuthenticated, 
     willShowChildren: isAuthenticated,
-    willRedirectToLogin: !isAuthenticated 
+    willRedirectToLogin: !isAuthenticated,
+    currentPath: window.location.pathname
   });
   
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  if (!isAuthenticated) {
+    console.log('🔄 ProtectedRoute: 로그인 페이지로 리다이렉트 실행', {
+      from: window.location.pathname,
+      to: '/login'
+    });
+    return <Navigate to="/login" replace />;
+  }
+  
+  console.log('✅ ProtectedRoute: 인증됨, 자식 컴포넌트 렌더링');
+  return <>{children}</>;
 }
 
 function RedirectRoute() {
@@ -1194,60 +1241,75 @@ function App() {
         <DataProvider>
           <AppProvider>
             <Suspense fallback={<LoadingSpinner />}>
-              <Router 
-                basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
-                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-              >
-            <div className="min-h-screen bg-background text-foreground dark">
-            {/* Moonwave Background */}
-            <WaveBackground />
-            
-            {/* Main content */}
-            <div className="relative z-10">
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/magic-login" element={<MagicLinkLogin />} />
-                <Route path="/magic-signup" element={<MagicLinkSignup />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/subscriptions" element={<ProtectedRoute><AllSubscriptions /></ProtectedRoute>} />
-                <Route path="/subscriptions/:id" element={<ProtectedRoute><SubscriptionCard /></ProtectedRoute>} />
-                <Route path="/subscriptions/new" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
-                <Route path="/subscriptions/:id/edit" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
-                <Route path="/calendar" element={<ProtectedRoute><PaymentCalendar /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                <Route path="/statistics" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/about" element={<AboutUs />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/firebase-debug" element={<FirebaseDebugger />} />
-                <Route path="/music" element={<ProtectedRoute><MusicPlayer /></ProtectedRoute>} />
+              <div className="min-h-screen bg-background text-foreground dark">
+                {/* Moonwave Background */}
+                <WaveBackground />
                 
-                {/* Handle preview_page.html and other unmatched routes */}
-                <Route path="/preview_page.html" element={<RedirectRoute />} />
-                <Route path="*" element={<RedirectRoute />} />
-              </Routes>
-            </div>
-            
-            {/* Music Player - Only show when authenticated */}
-            <AuthenticatedMusicPlayer />
-            
-            {/* PWA Install Prompt */}
-            <PWAInstallPrompt />
-            
-            {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
-            
-            {/* Firebase Debugger - 개발 모드에서만 표시 */}
-            {import.meta.env.VITE_DEV_MODE === 'true' && <FirebaseDebugger />}
-            
-            {/* Auth Debugger - 개발 모드에서만 표시 */}
-            {import.meta.env.VITE_DEV_MODE === 'true' && <AuthDebugger />}
-            
-            <Toaster />
-          </div>
-              </Router>
+                {/* Main content */}
+                <div className="relative z-10">
+                  <Routes>
+                    <Route path="/login" element={
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Login />
+                      </Suspense>
+                    } />
+                    <Route path="/signup" element={
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Signup />
+                      </Suspense>
+                    } />
+                    <Route path="/magic-login" element={
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <MagicLinkLogin />
+                      </Suspense>
+                    } />
+                    <Route path="/magic-signup" element={
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <MagicLinkSignup />
+                      </Suspense>
+                    } />
+                    <Route path="/auth/callback" element={
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <AuthCallback />
+                      </Suspense>
+                    } />
+                    <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
+                    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                    <Route path="/subscriptions" element={<ProtectedRoute><AllSubscriptions /></ProtectedRoute>} />
+                    <Route path="/subscriptions/:id" element={<ProtectedRoute><SubscriptionCard /></ProtectedRoute>} />
+                    <Route path="/subscriptions/new" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
+                    <Route path="/subscriptions/:id/edit" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
+                    <Route path="/calendar" element={<ProtectedRoute><PaymentCalendar /></ProtectedRoute>} />
+                    <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                    <Route path="/statistics" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                    <Route path="/about" element={<AboutUs />} />
+                    <Route path="/terms" element={<TermsOfService />} />
+                    <Route path="/firebase-debug" element={<FirebaseDebugger />} />
+                    <Route path="/music" element={<ProtectedRoute><MusicPlayer /></ProtectedRoute>} />
+                    
+                    {/* Handle preview_page.html and other unmatched routes */}
+                    <Route path="/preview_page.html" element={<RedirectRoute />} />
+                    <Route path="*" element={<RedirectRoute />} />
+                  </Routes>
+                </div>
+                
+                {/* Music Player - Only show when authenticated */}
+                <AuthenticatedMusicPlayer />
+                
+                {/* PWA Install Prompt */}
+                <PWAInstallPrompt />
+                
+                {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
+                
+                {/* Firebase Debugger - 개발 모드에서만 표시 */}
+                {import.meta.env.VITE_DEV_MODE === 'true' && <FirebaseDebugger />}
+                
+                {/* Auth Debugger - 개발 모드에서만 표시 */}
+                {import.meta.env.VITE_DEV_MODE === 'true' && <AuthDebugger />}
+                
+                <Toaster />
+              </div>
             </Suspense>
           </AppProvider>
         </DataProvider>
