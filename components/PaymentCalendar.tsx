@@ -185,7 +185,7 @@ export function PaymentCalendar() {
 
     // 해당년도 1월 1일부터 오늘까지 지출한 합계 계산
     const yearlySpendingToDate = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       
       // 해당년도 1월 1일부터 오늘까지의 결제일을 확인하여 실제 지출액 계산
       
@@ -213,7 +213,7 @@ export function PaymentCalendar() {
 
     // 해당년도 1월 1일부터 12월 31일까지 지출할 합계 계산
     const yearlyTotal = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       
       if (sub.paymentCycle === 'monthly') {
         // 월간 구독: 12개월 × 월간 금액
@@ -228,7 +228,7 @@ export function PaymentCalendar() {
 
     // 1일부터 오늘까지 지출한 금액 계산 (기존 로직 유지)
     const totalMonthly = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       
       // 1일부터 오늘까지의 결제일을 확인하여 실제 지출액 계산
       if (sub.paymentDay <= currentDay) {
@@ -238,7 +238,7 @@ export function PaymentCalendar() {
     }, 0);
 
     const monthlyTotal = filteredSubscriptions.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
       return total + monthlyAmount;
     }, 0);
@@ -249,13 +249,13 @@ export function PaymentCalendar() {
 
     // Calculate this week's total amount
     const weeklyTotal = thisWeekPayments.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       return total + amount;
     }, 0);
 
     // Calculate today's total amount
     const todayTotal = todaysPayments.reduce((total, sub) => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       return total + amount;
     }, 0);
 
@@ -272,10 +272,10 @@ export function PaymentCalendar() {
       todayTotal,
       averagePayment: filteredSubscriptions.length > 0 ? monthlyTotal / filteredSubscriptions.length : 0
     };
-  }, [filteredSubscriptions, preferences.exchangeRate, todaysPayments, thisWeekPayments, upcomingPayments]);
+  }, [filteredSubscriptions, preferences?.exchangeRate, todaysPayments, thisWeekPayments, upcomingPayments]);
 
   const formatCurrency = (amount: number, currency: 'KRW' | 'USD') => {
-    const finalAmount = currency === 'USD' ? amount * preferences.exchangeRate : amount;
+    const finalAmount = currency === 'USD' ? amount * (preferences?.exchangeRate || 1) : amount;
     return finalAmount.toLocaleString('ko-KR') + '원';
   };
 

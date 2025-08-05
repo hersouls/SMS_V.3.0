@@ -6,7 +6,8 @@ import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-import { useRealtimeStats } from '../hooks/useRealtimeStats';
+import { useImprovedRealtimeStats } from '../hooks/useImprovedRealtimeStats';
+import { StatisticsErrorFallback, StatisticsEmptyState, StatisticsLoadingState } from './StatisticsErrorFallback';
 import { 
   Plus, 
   Calendar, 
@@ -37,40 +38,69 @@ import { cn } from './ui/utils';
 export function Dashboard() {
   const { user } = useAuth();
   const { subscriptions, preferences, loading: dataLoading } = useData();
-  const { stats, loading: statsLoading, refresh: refreshStats } = useRealtimeStats();
+  const { stats, loading: statsLoading, error: statsError, refresh: refreshStats } = useImprovedRealtimeStats();
+  
+  // 모든 useState 훅들을 최상단으로 이동
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [monthlyBudget] = useState(500000); // 기본 월간 예산 50만원
   
   // Debug logging
   console.log('🏠 Dashboard render:', {
-    subscriptionsCount: subscriptions.length,
-    hasSubscriptions: subscriptions.length > 0,
+    subscriptionsCount: subscriptions?.length || 0,
+    hasSubscriptions: (subscriptions?.length || 0) > 0,
     preferences,
-    firstSubscription: subscriptions[0],
+    firstSubscription: subscriptions?.[0],
     dataLoading,
     statsLoading
   });
   
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const isLoading = dataLoading || statsLoading;
   
-  // 초기 로딩 중이면 로딩 화면 표시
-  if (isLoading) {
+  // 통계 에러 처리
+  if (statsError && !stats) {
     return (
       <div className="min-h-screen bg-background dark">
         <Header />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="flex flex-col items-center space-y-6">
-            <RefreshCw className="w-12 h-12 text-primary-500 animate-spin" />
-            <div className="text-white/60 text-lg tracking-wide">
-              데이터를 불러오는 중...
-            </div>
-          </div>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <StatisticsErrorFallback 
+            error={statsError}
+            onRetry={refreshStats}
+            showDetails={true}
+          />
         </div>
         <Footer />
       </div>
     );
   }
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [monthlyBudget] = useState(500000); // 기본 월간 예산 50만원
+  
+  // 데이터가 없는 경우
+  if (!isLoading && (!subscriptions || subscriptions.length === 0)) {
+    return (
+      <div className="min-h-screen bg-background dark">
+        <Header />
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <StatisticsEmptyState 
+            onAddSubscription={() => window.location.href = '/subscriptions/new'}
+          />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+  
+  // 초기 로딩 중이면 로딩 화면 표시
+  if (isLoading && !subscriptions?.length) {
+    return (
+      <div className="min-h-screen bg-background dark">
+        <Header />
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <StatisticsLoadingState />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
   
 
 
@@ -156,14 +186,14 @@ export function Dashboard() {
   };
 
   const getCategoryBreakdown = () => {
-    if (!subscriptions || !Array.isArray(subscriptions)) return [];
+    if (!subscriptions || !Array.isArray(subscriptions) || !stats?.categoryBreakdown) return [];
     return Object.entries(stats.categoryBreakdown)
       .map(([category, data]) => ({
         category,
         count: data.count,
-        totalAmount: data.totalAmount
+        monthlyAmount: data.monthlyAmount || 0
       }))
-      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .sort((a, b) => b.monthlyAmount - a.monthlyAmount)
       .slice(0, 5);
   };
 
@@ -251,20 +281,12 @@ export function Dashboard() {
                 <div className="p-token-sm rounded-lg transition-colors">
                   <DollarSign size={20} className="icon-enhanced" strokeWidth={1.5} />
                 </div>
-                {stats.monthlyTrend !== 0 && (
-                  <div className={cn(
-                    "flex items-center space-x-1 text-xs",
-                    stats.monthlyTrend > 0 ? "text-yellow-400" : "text-green-400"
-                  )}>
-                    {stats.monthlyTrend > 0 ? <TrendingUp size={12} className="icon-enhanced" /> : <TrendingDown size={12} className="icon-enhanced" />}
-                    <span>{Math.abs(stats.monthlyTrend).toFixed(1)}%</span>
-                  </div>
-                )}
+                {/* 월간 트렌드는 현재 계산되지 않으므로 제거 */}
               </div>
               <div>
                 <p className="text-white-force/60 text-sm-ko mb-1">총 지출 (KRW)</p>
                 <p className="text-3xl font-bold text-white-force group-hover:text-primary-300 transition-colors">
-                  {formatCurrency(stats.totalMonthly)}
+                  {formatCurrency(stats?.totalMonthlyKrw || 0)}
                 </p>
                 <p className="text-xs text-white-force/50 mt-1">
                   이번 달 기준
@@ -286,10 +308,10 @@ export function Dashboard() {
               <div>
                 <p className="text-white-force/60 text-sm-ko mb-1">활성 구독</p>
                 <p className="text-3xl font-bold text-white-force group-hover:text-white/80 transition-colors">
-                  {stats.activeCount}개
+                  {stats?.activeSubscriptions || 0}개
                 </p>
                 <p className="text-xs text-white-force/50 mt-1">
-                  총 {stats.totalSubscriptions}개 중
+                  총 {stats?.totalSubscriptions || 0}개 중
                 </p>
               </div>
             </GlassCard>
@@ -308,7 +330,7 @@ export function Dashboard() {
               <div>
                 <p className="text-white-force/60 text-sm-ko mb-1">신규 구독</p>
                 <p className="text-3xl font-bold text-white-force group-hover:text-primary-300 transition-colors">
-                  {subscriptions.filter(sub => {
+                  {(subscriptions || []).filter(sub => {
                     const createdDate = new Date(sub.createdAt || new Date());
                     const thirtyDaysAgo = new Date();
                     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -335,7 +357,7 @@ export function Dashboard() {
               <div>
                 <p className="text-white-force/60 text-sm-ko mb-1">해지된 구독</p>
                 <p className="text-3xl font-bold text-white-force group-hover:text-error-300 transition-colors">
-                  {subscriptions.filter(sub => sub.status === 'cancelled').length}개
+                  {(subscriptions || []).filter(sub => sub.status === 'cancelled').length}개
                 </p>
                 <p className="text-xs text-white-force/50 mt-1">
                   전체 구독 대비
@@ -350,7 +372,9 @@ export function Dashboard() {
                   <BarChart3 size={20} className="icon-enhanced" strokeWidth={1.5} />
                 </div>
                 {(() => {
-                  const engagementScore = Math.min(100, Math.max(0, (stats.activeCount / Math.max(stats.totalSubscriptions, 1)) * 100));
+                  const activeSubs = stats?.activeSubscriptions || 0;
+                  const totalSubs = stats?.totalSubscriptions || 1;
+                  const engagementScore = Math.min(100, Math.max(0, (activeSubs / Math.max(totalSubs, 1)) * 100));
                   if (engagementScore >= 80) return <div className="flex items-center space-x-1 text-xs text-green-400"><Star size={12} className="icon-enhanced" strokeWidth={1.5} /><span>우수</span></div>;
                   if (engagementScore >= 60) return <div className="flex items-center space-x-1 text-xs text-yellow-400"><CheckCircle size={12} className="icon-enhanced" strokeWidth={1.5} /><span>양호</span></div>;
                   return <div className="flex items-center space-x-1 text-xs text-red-400"><AlertCircle size={12} className="icon-enhanced" strokeWidth={1.5} /><span>개선</span></div>;
@@ -359,7 +383,7 @@ export function Dashboard() {
               <div>
                 <p className="text-white-force/60 text-sm-ko mb-1">참여도 점수</p>
                 <p className="text-3xl font-bold text-white-force group-hover:text-blue-300 transition-colors">
-                  {Math.min(100, Math.max(0, (stats.activeCount / Math.max(stats.totalSubscriptions, 1)) * 100)).toFixed(1)}%
+                  {Math.min(100, Math.max(0, ((stats?.activeSubscriptions || 0) / Math.max(stats?.totalSubscriptions || 1, 1)) * 100)).toFixed(1)}%
                 </p>
                 <p className="text-xs text-white-force/50 mt-1">
                   활성 구독 비율
@@ -455,7 +479,7 @@ export function Dashboard() {
                               <div className="flex items-center space-x-2">
                                 <div className="text-right">
                                   <p className="text-sm-ko font-medium text-white-force">
-                                    {formatCurrency(subscription.currency === 'USD' ? subscription.amount * preferences.exchangeRate : subscription.amount)}
+                                    {formatCurrency(subscription.currency === 'USD' ? subscription.amount * (preferences?.exchangeRate || 1) : subscription.amount)}
                                   </p>
                                   <p className="text-xs text-white-force/60">
                                     {subscription.paymentCycle === 'monthly' ? '월간' : 
@@ -545,27 +569,27 @@ export function Dashboard() {
                               
                               <span className={cn(
                                 "text-xs px-2 py-1 rounded-full font-semibold border-2 text-white",
-                                payment.daysUntilPayment <= 1 
+                                payment.daysUntil <= 1 
                                   ? "bg-red-500/40 border-red-400/60 shadow-lg shadow-red-500/30"
-                                  : payment.daysUntilPayment <= 3
+                                  : payment.daysUntil <= 3
                                     ? "bg-orange-500/40 border-orange-400/60 shadow-lg shadow-orange-500/30"
                                     : "bg-blue-500/40 border-blue-400/60 shadow-lg shadow-blue-500/30"
                               )}>
-                                {payment.daysUntilPayment === 0 ? '오늘' : 
-                                 payment.daysUntilPayment === 1 ? '내일' : 
-                                 `${payment.daysUntilPayment}일 후`}
+                                {payment.daysUntil === 0 ? '오늘' : 
+                                 payment.daysUntil === 1 ? '내일' : 
+                                 `${payment.daysUntil}일 후`}
                               </span>
                             </div>
                             
                             <div className="flex items-center justify-between">
                               <p className="text-xs text-white-force/60">
-                                {payment.paymentDate.toLocaleDateString('ko-KR', { 
+                                {payment.nextPaymentDate.toLocaleDateString('ko-KR', { 
                                   month: 'long', 
                                   day: 'numeric' 
                                 })}
                               </p>
                               <p className="text-sm-ko font-medium text-white-force">
-                                {formatCurrency(payment.currency === 'USD' ? payment.amount * preferences.exchangeRate : payment.amount)}
+                                {formatCurrency(payment.currency === 'USD' ? payment.amount * (preferences?.exchangeRate || 1) : payment.amount)}
                               </p>
                             </div>
                           </div>
@@ -605,12 +629,12 @@ export function Dashboard() {
                       <div className="space-y-token-sm">
                         <div className="flex items-center justify-between mb-token-sm">
                           <h3 className="text-white-force font-medium text-sm-ko">지출 분포</h3>
-                          <span className="text-white-force/60 text-xs">총 {formatCurrency(stats.monthlyTotal)}</span>
+                          <span className="text-white-force/60 text-xs">총 {formatCurrency(stats?.totalMonthlyKrw || 0)}</span>
                         </div>
                         
                         <div className="relative h-6 bg-white/10 rounded-full overflow-hidden">
                                                   {categoryBreakdown.map((item, index) => {
-                          const percentage = stats.monthlyTotal > 0 ? (item.amount / stats.monthlyTotal) * 100 : 0;
+                          const percentage = (stats?.totalMonthlyKrw || 0) > 0 ? (item.monthlyAmount / (stats?.totalMonthlyKrw || 1)) * 100 : 0;
                           const categoryColors = [
                             'bg-blue-500',
                             'bg-green-500', 
@@ -627,7 +651,7 @@ export function Dashboard() {
                           const previousWidth = categoryBreakdown
                             .slice(0, index)
                             .reduce((sum, prevItem) => {
-                              const prevPercentage = stats.monthlyTotal > 0 ? (prevItem.amount / stats.monthlyTotal) * 100 : 0;
+                              const prevPercentage = (stats?.totalMonthlyKrw || 0) > 0 ? (prevItem.monthlyAmount / (stats?.totalMonthlyKrw || 1)) * 100 : 0;
                               return sum + prevPercentage;
                             }, 0);
                           
@@ -642,7 +666,7 @@ export function Dashboard() {
                                 left: `${previousWidth}%`,
                                 width: `${percentage}%`
                               }}
-                              title={`${item.category}: ${formatCurrency(item.amount)} (${percentage.toFixed(1)}%)`}
+                              title={`${item.category}: ${formatCurrency(item.monthlyAmount)} (${percentage.toFixed(1)}%)`}
                             />
                           );
                         })}
@@ -652,7 +676,7 @@ export function Dashboard() {
                       {/* 카테고리별 상세 정보 */}
                       <div className="space-y-token-sm">
                         {categoryBreakdown.map((item, index) => {
-                          const percentage = (item.amount / stats.totalMonthly) * 100;
+                          const percentage = (item.monthlyAmount / (stats?.totalMonthlyKrw || 1)) * 100;
                           const categoryColors = [
                             'bg-blue-500',
                             'bg-green-500', 
@@ -673,10 +697,10 @@ export function Dashboard() {
                               </div>
                               <div className="text-right">
                                 <span className="text-white-force font-medium text-sm-ko">
-                                  {formatCurrency(item.amount)}
+                                  {formatCurrency(item.monthlyAmount)}
                                 </span>
                                 <span className="text-white-force/60 text-xs ml-2">
-                                  ({stats.monthlyTotal > 0 ? percentage.toFixed(1) : '0.0'}%)
+                                  ({(stats?.totalMonthlyKrw || 0) > 0 ? percentage.toFixed(1) : '0.0'}%)
                                 </span>
                               </div>
                             </div>

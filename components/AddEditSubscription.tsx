@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useLoadingState } from '../hooks/useLoadingState';
+import { uploadImage, getSubscriptionLogoPath, deleteFile } from '../utils/firebase/storage';
 import { 
   Save,
   X,
@@ -178,6 +179,11 @@ export function AddEditSubscription() {
   const [newTag, setNewTag] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [uploadError, setUploadError] = useState<string>('');
+  const [uploadSuccess, setUploadSuccess] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [firebaseImageUrl, setFirebaseImageUrl] = useState<string>('');
+  const [firebaseImagePath, setFirebaseImagePath] = useState<string>('');
 
   // 서비스 드롭다운 상태
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
@@ -245,6 +251,14 @@ export function AddEditSubscription() {
         memo: existingSubscription.memo || '',
         notifications: existingSubscription.notifications
       });
+      
+      // Firebase 이미지 정보 설정
+      if (existingSubscription.firebaseImageUrl) {
+        setFirebaseImageUrl(existingSubscription.firebaseImageUrl);
+      }
+      if (existingSubscription.firebaseImagePath) {
+        setFirebaseImagePath(existingSubscription.firebaseImagePath);
+      }
     }
   }, [isEditing, existingSubscription]);
 
@@ -363,6 +377,8 @@ export function AddEditSubscription() {
           serviceUrl: formData.serviceUrl.trim() || undefined,
           logo: formData.logo.trim() || formData.serviceName.charAt(0).toUpperCase(),
           logoImage: formData.logoImage.trim() || undefined,
+          firebaseImageUrl: firebaseImageUrl || undefined, // Firebase Storage URL
+          firebaseImagePath: firebaseImagePath || undefined, // Firebase Storage path
           amount: parseFloat(formData.amount),
           currency: formData.currency,
           paymentCycle: formData.paymentCycle,
@@ -379,11 +395,25 @@ export function AddEditSubscription() {
           notifications: formData.notifications
         };
 
+        // Remove undefined and empty string values to prevent Firestore errors
+        const cleanSubscriptionData = Object.fromEntries(
+          Object.entries(subscriptionData).filter(([key, value]) => {
+            const isValid = value !== undefined && value !== '';
+            if (!isValid) {
+              console.log(`🧹 Removing invalid field: ${key} = ${value}`);
+            }
+            return isValid;
+          })
+        );
+
+        console.log('📝 Original subscription data:', subscriptionData);
+        console.log('🧹 Cleaned subscription data:', cleanSubscriptionData);
+
         let result;
         if (isEditing && existingSubscription) {
-          result = await updateSubscription(existingSubscription.id, subscriptionData);
+          result = await updateSubscription(existingSubscription.id, cleanSubscriptionData);
         } else {
-          result = await addSubscription(subscriptionData);
+          result = await addSubscription(cleanSubscriptionData);
         }
 
         if (result.error) {
@@ -432,39 +462,119 @@ export function AddEditSubscription() {
     }));
   };
 
-  // Handle image upload
-  const handleImageUpload = (file: File) => {
-    // Reset previous error
+  // Handle image upload to Firebase Storage
+  const handleImageUpload = async (file: File) => {
+    console.log('📁 Firebase Storage 업로드 시작:', file.name, file.type, file.size);
+    
+    // Reset previous messages
     setUploadError('');
+    setUploadSuccess('');
+    setUploadProgress(0);
+    setIsUploading(true);
+
+    // Validate file exists
+    if (!file) {
+      setUploadError('파일을 선택해주세요.');
+      setIsUploading(false);
+      return;
+    }
+
+    // Validate user authentication
+    if (!user?.id) {
+      setUploadError('로그인이 필요합니다.');
+      setIsUploading(false);
+      return;
+    }
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setUploadError('이미지 파일만 업로드할 수 있습니다.');
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.some(type => file.type === type)) {
+      setUploadError(`지원하지 않는 파일 형식입니다. (${file.type})\n지원 형식: JPG, PNG, WEBP, GIF`);
+      setIsUploading(false);
       return;
     }
 
     // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError('파일 크기는 5MB 이하여야 합니다.');
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      setUploadError(`파일 크기가 너무 큽니다. (${fileSizeMB}MB)\n최대 5MB까지 업로드할 수 있습니다.`);
+      setIsUploading(false);
       return;
     }
 
-    // Create file reader
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        handleChange('logoImage', result);
+    try {
+      // Validate image dimensions
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          if (img.width < 32 || img.height < 32) {
+            reject(new Error('이미지 크기가 너무 작습니다. 최소 32x32px 이상이어야 합니다.'));
+          } else {
+            resolve();
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error('유효하지 않은 이미지 파일입니다.'));
+        };
+        img.src = objectUrl;
+      });
+
+      // Delete existing Firebase image if updating
+      if (firebaseImagePath) {
+        console.log('🗑️ 기존 Firebase 이미지 삭제 중...');
+        await deleteFile(firebaseImagePath);
       }
-    };
 
-    reader.onerror = () => {
-      setUploadError('파일을 읽는 중 오류가 발생했습니다.');
-    };
+      // Generate unique path for the image
+      const tempSubscriptionId = Date.now().toString();
+      const imagePath = getSubscriptionLogoPath(user.id, tempSubscriptionId, file.name);
+      
+      console.log('☁️ Firebase Storage 업로드 중...', imagePath);
 
-    // Read file as data URL
-    reader.readAsDataURL(file);
+      // Upload to Firebase Storage with resizing (max 512x512 for logos)
+      const uploadResult = await uploadImage(imagePath, file, 512, 512, 0.8);
+      
+      if (uploadResult.error) {
+        throw uploadResult.error;
+      }
+
+      if (!uploadResult.url || !uploadResult.path) {
+        throw new Error('업로드 결과가 유효하지 않습니다.');
+      }
+
+      // Update state with Firebase Storage URL and path
+      setFirebaseImageUrl(uploadResult.url);
+      setFirebaseImagePath(uploadResult.path);
+      
+      // Also create a data URL for immediate preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          handleChange('logoImage', result); // For immediate preview
+        }
+      };
+      reader.readAsDataURL(file);
+
+      console.log('✅ Firebase Storage 업로드 성공:', uploadResult.url);
+      setUploadError('');
+      setUploadSuccess('이미지가 Firebase Storage에 성공적으로 업로드되었습니다!');
+      
+      // 3초 후 성공 메시지 자동 사라짐
+      setTimeout(() => setUploadSuccess(''), 3000);
+
+    } catch (error: any) {
+      console.error('❌ Firebase 이미지 업로드 실패:', error);
+      setUploadError(error.message || '이미지 업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   // Calculate monthly amount for display
@@ -472,10 +582,10 @@ export function AddEditSubscription() {
     const amount = parseFloat(formData.amount) || 0;
     if (formData.paymentCycle === 'yearly') {
       const monthlyAmount = amount / 12;
-      const convertedAmount = formData.currency === 'USD' ? monthlyAmount * preferences.exchangeRate : monthlyAmount;
+              const convertedAmount = formData.currency === 'USD' ? monthlyAmount * (preferences?.exchangeRate || 1) : monthlyAmount;
       return convertedAmount;
     }
-    return formData.currency === 'USD' ? amount * preferences.exchangeRate : amount;
+            return formData.currency === 'USD' ? amount * (preferences?.exchangeRate || 1) : amount;
   };
 
   const sections = [
@@ -655,9 +765,21 @@ export function AddEditSubscription() {
                                 onClick={() => {
                                   setIsServiceDropdownOpen(!isServiceDropdownOpen);
                                 }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white-force transition-colors"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white-force transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                aria-expanded={isServiceDropdownOpen}
+                                aria-haspopup="listbox"
+                                aria-label="서비스 목록 펼치기"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape' && isServiceDropdownOpen) {
+                                    setIsServiceDropdownOpen(false);
+                                  }
+                                }}
                               >
-                                <ChevronDown size={16} className={cn("transition-transform", isServiceDropdownOpen && "rotate-180")} />
+                                <ChevronDown 
+                                  size={16} 
+                                  className={cn("transition-transform", isServiceDropdownOpen && "rotate-180")}
+                                  aria-hidden="true"
+                                />
                               </button>
                             </div>
                             
@@ -787,7 +909,7 @@ export function AddEditSubscription() {
                             {/* Upload Area */}
                             <div
                               className={cn(
-                                "relative border-2 border-dashed rounded-lg transition-all duration-200",
+                                "relative border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer",
                                 "hover:border-primary-500/50 hover:bg-primary-500/5",
                                 "border-white/20 bg-white/5"
                               )}
@@ -807,44 +929,96 @@ export function AddEditSubscription() {
                                   handleImageUpload(files[0]);
                                 }
                               }}
+                              onClick={() => {
+                                // 업로드 중이면 클릭 무시
+                                if (isUploading) return;
+                                
+                                // 파일 입력 요소를 프로그래매틱하게 클릭
+                                const fileInput = document.getElementById('logo-image-upload') as HTMLInputElement;
+                                if (fileInput) {
+                                  fileInput.click();
+                                }
+                              }}
                             >
                               <input
+                                id="logo-image-upload"
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
+                                    console.log('📁 파일 선택됨:', file.name);
                                     handleImageUpload(file);
                                   }
+                                  // Reset input value to allow same file selection again
+                                  e.target.value = '';
                                 }}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                className="sr-only"
+                                style={{ display: 'none' }}
                               />
                               
                               {formData.logoImage ? (
-                                <div className="relative p-token-md">
+                                <div className="relative p-token-md" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center space-x-token-md">
                                     <div className="w-16 h-16 rounded-lg overflow-hidden border border-white/20">
                                       <img
-                                        src={formData.logoImage}
+                                        src={firebaseImageUrl || formData.logoImage}
                                         alt="로고 미리보기"
                                         className="w-full h-full object-cover"
                                       />
                                     </div>
-                                                                      <div className="flex-1">
-                                    <p className="text-white-force font-medium mb-1">이미지 업로드됨</p>
-                                    <p className="text-white-force text-sm opacity-60">새 이미지를 선택하거나 드래그하여 교체할 수 있습니다</p>
-                                  </div>
-                                    <WaveButton
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        handleChange('logoImage', '');
-                                      }}
-                                      className="text-error-400 hover:text-error-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
-                                    >
-                                      <X size={16} />
-                                    </WaveButton>
+                                    <div className="flex-1">
+                                      <p className="text-white-force font-medium mb-1">이미지 업로드됨</p>
+                                      <p className="text-white-force text-sm opacity-60">클릭하여 새 이미지를 선택하거나 드래그하여 교체</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <WaveButton
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const fileInput = document.getElementById('logo-image-upload') as HTMLInputElement;
+                                          if (fileInput) {
+                                            fileInput.click();
+                                          }
+                                        }}
+                                        className="text-info-400 hover:text-info-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
+                                        title="새 이미지 선택"
+                                      >
+                                        <Upload size={16} />
+                                      </WaveButton>
+                                      <WaveButton
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          
+                                          // Firebase Storage에서 파일 삭제
+                                          if (firebaseImagePath) {
+                                            try {
+                                              console.log('🗑️ Firebase Storage에서 이미지 삭제 중...');
+                                              await deleteFile(firebaseImagePath);
+                                              setFirebaseImageUrl('');
+                                              setFirebaseImagePath('');
+                                              console.log('✅ Firebase Storage 이미지 삭제 성공');
+                                            } catch (error) {
+                                              console.error('❌ Firebase Storage 이미지 삭제 실패:', error);
+                                            }
+                                          }
+                                          
+                                          // 로컬 상태 초기화
+                                          handleChange('logoImage', '');
+                                          setUploadError('');
+                                          setUploadSuccess('');
+                                        }}
+                                        className="text-error-400 hover:text-error-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
+                                        title="이미지 삭제"
+                                      >
+                                        <X size={16} />
+                                      </WaveButton>
+                                    </div>
                                   </div>
                                 </div>
                               ) : (
@@ -863,7 +1037,7 @@ export function AddEditSubscription() {
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      className="text-info-400 hover:text-info-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
+                                      className="pointer-events-none text-info-400"
                                     >
                                       <ImageIcon size={14} className="mr-1 text-white-force" />
                                       파일 선택
@@ -875,11 +1049,49 @@ export function AddEditSubscription() {
 
                             {/* Upload Error */}
                             {uploadError && (
-                              <div className="p-token-sm bg-error-500/10 border border-error-500/20 rounded-lg">
+                              <div className="p-token-sm bg-error-500/10 border border-error-500/20 rounded-lg animate-in slide-in-from-top-2 duration-300">
                                 <div className="flex items-center space-x-token-sm">
                                   <AlertCircle size={14} className="text-error-400 flex-shrink-0" />
-                                  <span className="text-white-force text-sm">{uploadError}</span>
+                                  <span className="text-white-force text-sm whitespace-pre-line">{uploadError}</span>
                                 </div>
+                              </div>
+                            )}
+
+                            {/* Upload Progress */}
+                            {isUploading && (
+                              <div className="p-token-sm bg-info-500/10 border border-info-500/20 rounded-lg animate-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center space-x-token-sm">
+                                  <RefreshCw size={14} className="text-info-400 flex-shrink-0 animate-spin" />
+                                  <span className="text-white-force text-sm">Firebase Storage에 업로드 중...</span>
+                                </div>
+                                {uploadProgress > 0 && (
+                                  <div className="mt-2">
+                                    <div className="w-full bg-white/20 rounded-full h-2">
+                                      <div 
+                                        className="bg-info-400 h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${uploadProgress}%` }}
+                                      ></div>
+                                    </div>
+                                    <div className="text-xs text-white-force mt-1 opacity-60">
+                                      {uploadProgress.toFixed(1)}%
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Upload Success */}
+                            {uploadSuccess && !isUploading && (
+                              <div className="p-token-sm bg-success-500/10 border border-success-500/20 rounded-lg animate-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center space-x-token-sm">
+                                  <CheckCircle size={14} className="text-success-400 flex-shrink-0" />
+                                  <span className="text-white-force text-sm">{uploadSuccess}</span>
+                                </div>
+                                {firebaseImageUrl && (
+                                  <div className="mt-2 text-xs text-white-force opacity-60">
+                                    ☁️ Firebase Storage에 저장됨
+                                  </div>
+                                )}
                               </div>
                             )}
 
@@ -890,10 +1102,11 @@ export function AddEditSubscription() {
                                 <div className="text-xs text-left">
                                   <p className="text-white-force font-medium mb-1">업로드 가이드</p>
                                   <ul className="text-white-force space-y-0.5 opacity-80">
-                                    <li>• 권장 크기: 512x512px 이상</li>
-                                    <li>• 파일 형식: PNG, JPG, WEBP</li>
+                                    <li>• 권장 크기: 512x512px 이상 (최소 32x32px)</li>
+                                    <li>• 파일 형식: JPG, PNG, WEBP, GIF</li>
                                     <li>• 최대 크기: 5MB</li>
                                     <li>• 정사각형 비율 권장</li>
+                                    <li>• ☁️ Firebase Storage에 안전하게 저장됨</li>
                                   </ul>
                                 </div>
                               </div>
@@ -1387,9 +1600,11 @@ export function AddEditSubscription() {
                                 <button
                                   type="button"
                                   onClick={() => removeTag(tag)}
-                                  className="text-secondary-400 hover:text-secondary-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
+                                  className="text-secondary-400 hover:text-secondary-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 min-w-[20px] min-h-[20px] flex items-center justify-center rounded-full"
+                                  aria-label={`태그 "${tag}" 제거`}
+                                  title={`태그 "${tag}" 제거`}
                                 >
-                                  <X size={10} />
+                                  <X size={12} aria-hidden="true" />
                                 </button>
                               </div>
                             ))}
@@ -1552,9 +1767,9 @@ export function AddEditSubscription() {
                         "w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-lg overflow-hidden",
                         phaseColors.bg
                       )}>
-                        {formData.logoImage ? (
+                        {(firebaseImageUrl || formData.logoImage) ? (
                           <img 
-                            src={formData.logoImage} 
+                            src={firebaseImageUrl || formData.logoImage} 
                             alt="로고"
                             className="w-full h-full object-cover"
                           />

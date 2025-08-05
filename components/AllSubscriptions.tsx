@@ -4,8 +4,13 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
+import { FirebaseIndexError } from './FirebaseIndexError';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+import { AdvancedSearch, SearchFilter } from './AdvancedSearch';
+import { SearchHighlight } from './SearchHighlight';
+import { SearchFavorites } from './SearchFavorites';
+import { SearchSummary } from './SearchSummary';
 import { 
   Plus, 
   Search, 
@@ -22,25 +27,34 @@ import {
   SortDesc,
   RefreshCw,
   Eye,
-  Archive
+  Archive,
+  Star,
+  Filter
 } from 'lucide-react';
 import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
 
 export function AllSubscriptions() {
   const { user } = useAuth();
-  const { subscriptions, preferences, loading } = useData();
+  const { subscriptions, preferences, loading, error } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   
   // States
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'paused' | 'cancelled'>('all');
-  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'amount' | 'paymentDay'>('recent');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentFilter, setCurrentFilter] = useState<SearchFilter>({
+    query: '',
+    status: 'all',
+    category: 'all',
+    priceRange: { min: 0, max: 1000000 },
+    paymentCycle: 'all',
+    tags: [],
+    dateRange: { start: null, end: null },
+    sortBy: 'recent',
+    sortOrder: 'desc'
+  });
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
 
   // Handle location state messages
   useEffect(() => {
@@ -69,35 +83,51 @@ export function AllSubscriptions() {
   const { filteredSubscriptions, statusCounts, categories, totalMonthlySpend } = useMemo(() => {
     // Filter subscriptions
     let filtered = subscriptions.filter(sub => {
-      const matchesSearch = sub.serviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           sub.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           sub.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesStatus = selectedStatus === 'all' || sub.status === selectedStatus;
-      const matchesCategory = selectedCategory === 'all' || sub.category === selectedCategory;
+      // 검색어 필터링
+      const query = currentFilter.query.toLowerCase();
+      const matchesSearch = !query || 
+        sub.serviceName.toLowerCase().includes(query) ||
+        sub.category.toLowerCase().includes(query) ||
+        sub.tags.some(tag => tag.toLowerCase().includes(query));
       
-      return matchesSearch && matchesStatus && matchesCategory;
+      // 상태 필터링
+      const matchesStatus = currentFilter.status === 'all' || sub.status === currentFilter.status;
+      
+      // 카테고리 필터링
+      const matchesCategory = currentFilter.category === 'all' || sub.category === currentFilter.category;
+      
+      // 결제 주기 필터링
+      const matchesPaymentCycle = currentFilter.paymentCycle === 'all' || sub.paymentCycle === currentFilter.paymentCycle;
+      
+      // 가격 범위 필터링
+      const monthlyAmount = getMonthlyAmount(sub);
+      const matchesPriceRange = monthlyAmount >= currentFilter.priceRange.min && monthlyAmount <= currentFilter.priceRange.max;
+      
+      // 태그 필터링
+      const matchesTags = currentFilter.tags.length === 0 || 
+        currentFilter.tags.some(tag => sub.tags.includes(tag));
+      
+      return matchesSearch && matchesStatus && matchesCategory && matchesPaymentCycle && matchesPriceRange && matchesTags;
     });
 
     // Sort subscriptions
     filtered.sort((a, b) => {
       let result = 0;
       
-      switch (sortBy) {
+      switch (currentFilter.sortBy) {
         case 'name':
           result = a.serviceName.localeCompare(b.serviceName, 'ko');
           break;
         case 'amount':
-          const amountA = a.currency === 'USD' ? a.amount * preferences.exchangeRate : a.amount;
-          const amountB = b.currency === 'USD' ? b.amount * preferences.exchangeRate : b.amount;
-          
-          // Convert to monthly for fair comparison
-          const monthlyA = a.paymentCycle === 'yearly' ? amountA / 12 : amountA;
-          const monthlyB = b.paymentCycle === 'yearly' ? amountB / 12 : amountB;
-          
-          result = monthlyB - monthlyA;
+          const amountA = getMonthlyAmount(a);
+          const amountB = getMonthlyAmount(b);
+          result = amountB - amountA;
           break;
         case 'paymentDay':
           result = a.paymentDay - b.paymentDay;
+          break;
+        case 'category':
+          result = a.category.localeCompare(b.category, 'ko');
           break;
         case 'recent':
         default:
@@ -105,7 +135,7 @@ export function AllSubscriptions() {
           break;
       }
       
-      return sortOrder === 'asc' ? -result : result;
+      return currentFilter.sortOrder === 'asc' ? -result : result;
     });
 
     // Calculate status counts
@@ -129,7 +159,7 @@ export function AllSubscriptions() {
     const monthlySpend = subscriptions
       .filter(sub => sub.status === 'active')
       .reduce((total, sub) => {
-        const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+        const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
         const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
         return total + monthlyAmount;
       }, 0);
@@ -140,7 +170,7 @@ export function AllSubscriptions() {
       categories: uniqueCategories,
       totalMonthlySpend: monthlySpend
     };
-      }, [subscriptions, searchQuery, selectedStatus, selectedCategory, sortBy, sortOrder, preferences.exchangeRate]);
+      }, [subscriptions, currentFilter, preferences?.exchangeRate]);
 
   // Enhanced refresh function  
   const handleRefresh = async () => {
@@ -226,7 +256,7 @@ export function AllSubscriptions() {
   };
 
   const getMonthlyAmount = (subscription: any) => {
-    const amount = subscription.currency === 'USD' ? subscription.amount * preferences.exchangeRate : subscription.amount;
+    const amount = subscription.currency === 'USD' ? subscription.amount * (preferences?.exchangeRate || 1) : subscription.amount;
     return subscription.paymentCycle === 'yearly' ? amount / 12 : amount;
   };
 
@@ -318,7 +348,7 @@ export function AllSubscriptions() {
               }
             ].map((stat, index) => {
               const IconComponent = stat.icon;
-              const isSelected = selectedStatus === stat.key;
+              const isSelected = currentFilter.status === stat.key;
               
               return (
                 <GlassCard 
@@ -328,7 +358,7 @@ export function AllSubscriptions() {
                     "p-token-lg cursor-pointer transition-all duration-300 hover:border-white/30 hover:scale-105 group hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 focus:outline-none",
                     isSelected && "ring-1 ring-primary-500/30 shadow-lg"
                   )}
-                  onClick={() => setSelectedStatus(stat.key as any)}
+                  onClick={() => setCurrentFilter(prev => ({ ...prev, status: stat.key as any }))}
                 >
                   <div className="flex items-center justify-between mb-token-sm">
                     <div className={cn(
@@ -371,60 +401,26 @@ export function AllSubscriptions() {
             <div className="space-y-token-lg">
               {/* Main Controls Row */}
               <div className="flex flex-col xl:flex-row gap-token-md">
-                {/* Enhanced Search */}
-                <div className="flex-1 relative">
-                  <Search size={20} className="absolute left-token-sm top-1/2 -translate-y-1/2 icon-enhanced text-white-force" />
-                  <input
-                    type="text"
-                    placeholder="구독명, 카테고리, 태그로 검색..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-token-md py-token-sm bg-white/5 border border-white/10 rounded-lg text-white-force placeholder:text-white-force focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 text-base-ko keyboard-navigation"
+                {/* Advanced Search */}
+                <div className="flex-1">
+                  <AdvancedSearch
+                    subscriptions={subscriptions}
+                    onFilterChange={setCurrentFilter}
+                    onSearchHistorySave={(query) => console.log('검색 히스토리 저장:', query)}
                   />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-token-sm top-1/2 -translate-y-1/2 text-white-force hover:text-white hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target-sm"
-                    >
-                      <XCircle size={16} className="icon-enhanced" />
-                    </button>
-                  )}
                 </div>
 
-                {/* Filter Controls */}
+                {/* View Mode and Favorites */}
                 <div className="flex flex-wrap gap-token-sm">
-                  {/* Category Filter */}
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-token-md py-token-sm bg-white/5 border border-white/10 rounded-lg text-white-force focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all duration-200 text-base-ko"
+                  {/* Favorites Toggle */}
+                  <WaveButton
+                    variant={showFavorites ? "primary" : "secondary"}
+                    onClick={() => setShowFavorites(!showFavorites)}
+                    className="text-sm"
                   >
-                    {categories.map((category, index) => (
-                      <option key={category + '-' + index} value={category} className="bg-gray-800 text-white-force">
-                        {category === 'all' ? '전체 카테고리' : category}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Sort Controls */}
-                  <div className="flex border border-white/10 rounded-lg overflow-hidden">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
-                      className="px-token-md py-token-sm bg-white/5 text-white-force focus:outline-none border-none text-base-ko"
-                    >
-                      <option value="recent" className="bg-gray-800 text-white-force">최근 등록순</option>
-                      <option value="name" className="bg-gray-800 text-white-force">이름순</option>
-                      <option value="amount" className="bg-gray-800 text-white-force">금액순</option>
-                      <option value="paymentDay" className="bg-gray-800 text-white-force">결제일순</option>
-                    </select>
-                                          <button
-                        onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                        className="px-token-sm py-token-sm bg-white/5 text-white-force hover:text-white hover:bg-white/10 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
-                      >
-                        {sortOrder === 'asc' ? <SortAsc size={16} className="icon-enhanced" /> : <SortDesc size={16} className="icon-enhanced" />}
-                      </button>
-                  </div>
+                    <Star size={16} className="mr-token-xs" />
+                    즐겨찾기
+                  </WaveButton>
 
                   {/* View Mode Toggle */}
                   <div className="flex border border-white/10 rounded-lg overflow-hidden">
@@ -482,14 +478,22 @@ export function AllSubscriptions() {
                 </div>
 
                 <div className="flex items-center space-x-token-sm">
-                  {(searchQuery || selectedStatus !== 'all' || selectedCategory !== 'all') && (
+                  {(currentFilter.query || currentFilter.status !== 'all' || currentFilter.category !== 'all' || currentFilter.tags.length > 0) && (
                     <WaveButton
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setSearchQuery('');
-                        setSelectedStatus('all');
-                        setSelectedCategory('all');
+                        setCurrentFilter({
+                          query: '',
+                          status: 'all',
+                          category: 'all',
+                          priceRange: { min: 0, max: 1000000 },
+                          paymentCycle: 'all',
+                          tags: [],
+                          dateRange: { start: null, end: null },
+                          sortBy: 'recent',
+                          sortOrder: 'desc'
+                        });
                       }}
                       className="text-white-force hover:text-white hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200"
                     >
@@ -500,6 +504,22 @@ export function AllSubscriptions() {
               </div>
             </div>
           </GlassCard>
+
+          {/* Firebase Index Error Display */}
+          {error && (
+            <FirebaseIndexError 
+              error={error} 
+              onRetry={() => window.location.reload()} 
+              className="mb-token-lg"
+            />
+          )}
+
+          {/* Search Summary */}
+          <SearchSummary
+            totalCount={subscriptions.length}
+            filteredCount={filteredSubscriptions.length}
+            filter={currentFilter}
+          />
 
           {/* Enhanced Subscriptions Display */}
           {filteredSubscriptions.length > 0 ? (
@@ -544,11 +564,19 @@ export function AllSubscriptions() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold text-white-force truncate group-hover:text-primary-300 transition-colors text-lg-ko">
-                                {subscription.serviceName}
+                                <SearchHighlight 
+                                  text={subscription.serviceName} 
+                                  query={currentFilter.query}
+                                />
                               </h3>
                               <div className="flex items-center space-x-1">
                                 <span className={cn("w-2 h-2 rounded-full", phaseColors.bg)}></span>
-                                <p className="text-white-force text-sm-ko">{subscription.category}</p>
+                                <p className="text-white-force text-sm-ko">
+                                  <SearchHighlight 
+                                    text={subscription.category} 
+                                    query={currentFilter.query}
+                                  />
+                                </p>
                               </div>
                             </div>
                           </div>

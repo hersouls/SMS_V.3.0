@@ -69,17 +69,18 @@ export function FloatingActionButton() {
                 <button
                   onClick={() => handleActionClick(action.action)}
                   className={`
-                    w-12 h-12 rounded-full bg-gradient-to-r ${action.color}
+                    w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-gradient-to-r ${action.color}
                     flex items-center justify-center text-white
                     shadow-lg hover:shadow-xl transform hover:scale-105
                     transition-all duration-200 transform-gpu
                     focus:outline-none focus:ring-2 focus:ring-white/50
-                    hover:bg-white/30 active:scale-95 touch-target-sm
+                    hover:bg-white/30 active:scale-95
                     wave-button-glass-enhanced
                   `}
                   aria-label={action.label}
+                  title={action.label}
                 >
-                  <Icon size={20} className="icon-enhanced" />
+                  <Icon size={20} className="icon-enhanced" aria-hidden="true" />
                 </button>
               </div>
             );

@@ -1,7 +1,7 @@
 {
   "name": "구독관리 | Moonwave",
   "short_name": "구독관리",
-  "description": "구독 서비스 관리 시스템 - Moonwave SMS V.3.0",
+  "description": "구독 서비스 관리 시스템 - Moonwave SMS V.3.0 (오프라인 지원)",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -12,6 +12,12 @@
   "dir": "ltr",
   "categories": ["productivity", "finance", "business"],
   "icons": [
+    {
+      "src": "/moonwave.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/Moonwave_2.png",
       "sizes": "192x192",
@@ -35,10 +41,50 @@
     },
     {
       "name": "구독 관리",
-      "short_name": "관리",
+      "short_name": "관리", 
       "description": "기존 구독 서비스 관리",
       "url": "/dashboard",
       "icons": [{ "src": "/Moonwave_2.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "통계",
+      "short_name": "통계",
+      "description": "구독 통계 및 분석",
+      "url": "/statistics",
+      "icons": [{ "src": "/Moonwave_2.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "설정",
+      "short_name": "설정", 
+      "description": "앱 설정 및 환경설정",
+      "url": "/settings",
+      "icons": [{ "src": "/Moonwave_2.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "capture_links": "existing-client-navigate",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "protocol_handlers": [
+    {
+      "protocol": "web+moonwave",
+      "url": "/?action=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/import",
+      "accept": {
+        "application/json": [".json"],
+        "text/csv": [".csv"]
+      }
     }
   ]
 }

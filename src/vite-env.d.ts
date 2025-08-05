@@ -1,15 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  // Supabase Configuration
-  readonly VITE_SUPABASE_URL: string
-  readonly VITE_SUPABASE_ANON_KEY: string
-  
-  // Google OAuth Configuration
-  readonly VITE_GOOGLE_CLIENT_ID: string
-  readonly VITE_GOOGLE_CLIENT_SECRET: string
-  
-  // Firebase Configuration (선택사항)
+  // Firebase Configuration
   readonly VITE_FIREBASE_API_KEY: string
   readonly VITE_FIREBASE_AUTH_DOMAIN: string
   readonly VITE_FIREBASE_PROJECT_ID: string
@@ -17,6 +9,10 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string
   readonly VITE_FIREBASE_APP_ID: string
   readonly VITE_FIREBASE_MEASUREMENT_ID: string
+  
+  // Google OAuth Configuration
+  readonly VITE_GOOGLE_CLIENT_ID: string
+  readonly VITE_GOOGLE_CLIENT_SECRET: string
   
   // Application Configuration
   readonly VITE_APP_URL: string
@@ -26,6 +22,7 @@ interface ImportMetaEnv {
   // Development Configuration
   readonly VITE_DEV_MODE: string
   readonly VITE_ENABLE_DEBUG: string
+  readonly VITE_USE_EMULATOR: string
   
   // Security Configuration
   readonly VITE_ALLOWED_ORIGINS: string
@@ -33,4 +30,4 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv
-} 
+}

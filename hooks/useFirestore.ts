@@ -66,7 +66,8 @@ export const useCollection = <T = DocumentData>(
           
           console.log('✅ Firestore 데이터 업데이트:', {
             collection: collectionName,
-            count: docs.length
+            count: docs.length,
+            docs: docs.map(doc => ({ id: doc.id, serviceName: (doc as any).serviceName }))
           });
           
           setData(docs);

@@ -37,12 +37,21 @@ export function Header() {
               <WaveButton
                 variant={isNotifications ? "primary" : "ghost"}
                 size="sm"
-                ariaLabel="알림"
+                ariaLabel={`알림 ${3}개의 읽지 않은 알림`}
                 className="p-token-sm relative hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-smooth"
               >
                 <Icons.Bell size={20} className="icon-enhanced" />
                 {/* Notification Badge */}
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full border-2 border-white/20 shadow-lg shadow-red-500/30"></div>
+                {3 > 0 && (
+                  <div 
+                    className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-400 rounded-full border-2 border-white/20 shadow-lg shadow-red-500/30 flex items-center justify-center"
+                    aria-hidden="true"
+                  >
+                    <span className="text-white text-xs font-bold px-1">
+                      {3 > 99 ? '99+' : 3}
+                    </span>
+                  </div>
+                )}
               </WaveButton>
             </Link>
 

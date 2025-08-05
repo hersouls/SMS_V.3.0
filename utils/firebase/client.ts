@@ -34,6 +34,19 @@ export { auth, db, storage };
 
 export const firebase = { auth, db, storage };
 
+// Firebase 서비스를 전역 객체에 노출 (개발 및 테스트용)
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.firebase = firebase;
+  // @ts-ignore
+  window.auth = auth;
+  // @ts-ignore
+  window.db = db;
+  // @ts-ignore
+  window.storage = storage;
+  console.log('🔧 Firebase 서비스를 window 객체에 노출 완료');
+}
+
 console.log('🔍 Firebase 클라이언트 초기화 완료');
 
 export const checkFirebaseConnection = async () => {
@@ -186,11 +199,14 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
 
 export const createDocument = async (collectionName: string, data: any) => {
   try {
-    const docRef = await addDoc(collection(db, collectionName), {
-      ...data,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    });
+    // Check for undefined values before sending to Firestore
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
+    );
+
+    console.log('🔍 Final data being sent to Firestore:', cleanData);
+
+    const docRef = await addDoc(collection(db, collectionName), cleanData);
     console.log('✅ 문서 생성 성공:', docRef.id);
     return { id: docRef.id, error: null };
   } catch (error: any) {
@@ -217,9 +233,16 @@ export const getDocument = async (collectionName: string, docId: string) => {
 
 export const updateDocument = async (collectionName: string, docId: string, data: any) => {
   try {
+    // Check for undefined values before sending to Firestore
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
+    );
+
+    console.log('🔍 Final data being sent to Firestore for update:', cleanData);
+
     const docRef = doc(db, collectionName, docId);
     await updateDoc(docRef, {
-      ...data,
+      ...cleanData,
       updatedAt: Timestamp.now()
     });
     console.log('✅ 문서 업데이트 성공:', docId);

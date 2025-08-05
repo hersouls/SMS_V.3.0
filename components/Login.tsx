@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, LogIn } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { WaveButton } from './WaveButton';
+import { WaveBackground } from './WaveBackground';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Login() {
@@ -56,9 +57,10 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" role="main" aria-label="로그인 페이지">
-      <div className="w-full max-w-md">
-        <GlassCard variant="strong" className="p-8" withWaveEffect={false}>
+    <main className="min-h-screen flex items-center justify-center p-4 relative" aria-label="로그인 페이지">
+      <WaveBackground />
+      <div className="w-full max-w-md sm:max-w-md mx-auto px-4 sm:px-0 relative z-10">
+        <GlassCard variant="strong" className="p-6 sm:p-8" withWaveEffect={false}>
           {/* Header */}
           <div className="text-center mb-8">
             <div className="text-5xl mb-4">🌊</div>
@@ -182,13 +184,19 @@ export function Login() {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base duration-200"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base duration-200 min-w-[44px] min-h-[44px]"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading || isGoogleLoading}
+                  aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                  aria-pressed={showPassword}
+                  title={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-white-force icon-enhanced hover:text-white/60 transition-colors" />
+                    <EyeOff className="h-5 w-5 text-white-force icon-enhanced hover:text-white/60 transition-colors" 
+                           aria-hidden="true" />
                   ) : (
-                    <Eye className="h-5 w-5 text-white-force icon-enhanced hover:text-white/60 transition-colors" />
+                    <Eye className="h-5 w-5 text-white-force icon-enhanced hover:text-white/60 transition-colors" 
+                         aria-hidden="true" />
                   )}
                 </button>
               </div>
@@ -226,6 +234,6 @@ export function Login() {
 
         </GlassCard>
       </div>
-    </div>
+    </main>
   );
 }

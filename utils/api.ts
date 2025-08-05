@@ -1,2 +1,2 @@
-// 프로덕션 API 서비스 사용
-export { productionApiService as apiService } from './api-production';
+// Firebase API 서비스 사용
+export { firebaseApiService as apiService } from './api-firebase';

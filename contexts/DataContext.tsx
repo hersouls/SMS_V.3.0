@@ -1,5 +1,6 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useCollection, useDocument } from '../hooks/useFirestore';
+import { useSafeSubscriptions } from '../hooks/useSafeSubscriptions';
 import { useAuth } from './AuthContext';
 import { 
   createDocument,
@@ -9,6 +10,11 @@ import {
   orderBy,
   Timestamp
 } from '../utils/firebase/client';
+import { 
+  getSubscriptionsForUser,
+  subscribeToUserSubscriptions,
+  getSubscriptionStats
+} from '../utils/firebase/subscriptionQueries';
 
 export interface Subscription {
   id: string;
@@ -106,18 +112,23 @@ interface DataProviderProps {
 export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const { user } = useAuth();
 
-  // 사용자의 구독 정보 가져오기
+  // 사용자의 구독 정보 가져오기 (안전한 방법)
   const { 
     data: subscriptions, 
     loading: subscriptionsLoading, 
-    error: subscriptionsError 
-  } = useCollection<Subscription>(
-    'subscriptions',
-    user ? [
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    ] : []
-  );
+    error: subscriptionsError,
+    refresh: refreshSubscriptions
+  } = useSafeSubscriptions(user?.uid || null);
+
+  // 구독 데이터 변경 로깅
+  useEffect(() => {
+    console.log('📊 구독 데이터 상태 변경:', {
+      count: subscriptions?.length || 0,
+      loading: subscriptionsLoading,
+      error: subscriptionsError,
+      userId: user?.uid
+    });
+  }, [subscriptions, subscriptionsLoading, subscriptionsError, user?.uid]);
 
   // 사용자의 설정 정보 가져오기
   const { 
@@ -145,6 +156,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const loading = subscriptionsLoading || preferencesLoading || notificationsLoading;
   const error = subscriptionsError || preferencesError || notificationsError;
 
+  // 에러 발생 시 로깅
+  React.useEffect(() => {
+    if (error) {
+      console.error('📊 DataContext 에러 발생:', error);
+    }
+  }, [error]);
+
   const addSubscription = async (subscriptionData: Omit<Subscription, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
     if (!user) {
       return { id: null, error: new Error('사용자가 인증되지 않았습니다.') };
@@ -152,14 +170,38 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     console.log('🔄 구독 추가 중:', subscriptionData.serviceName);
 
+    // Remove undefined values to prevent Firestore errors
+    const cleanSubscriptionData = Object.fromEntries(
+      Object.entries(subscriptionData).filter(([key, value]) => {
+        const isUndefined = value === undefined;
+        if (isUndefined) {
+          console.log(`🧹 Removing undefined field: ${key}`);
+        }
+        return !isUndefined;
+      })
+    );
+
+    console.log('📝 Original subscription data:', subscriptionData);
+    console.log('🧹 Cleaned subscription data:', cleanSubscriptionData);
+
     const newSubscription = {
-      ...subscriptionData,
+      ...cleanSubscriptionData,
       userId: user.uid,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     };
 
-    return await createDocument('subscriptions', newSubscription);
+    const result = await createDocument('subscriptions', newSubscription);
+    
+    if (result.id) {
+      console.log('✅ 구독 추가 성공, 실시간 업데이트 대기 중...');
+      // 실시간 업데이트를 위해 잠시 대기
+      setTimeout(() => {
+        console.log('🔄 실시간 데이터 새로고침 트리거');
+      }, 1000);
+    }
+
+    return result;
   };
 
   const updateSubscription = async (id: string, subscriptionData: Partial<Subscription>) => {
@@ -169,8 +211,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     console.log('🔄 구독 업데이트 중:', id);
 
+    // Remove undefined values to prevent Firestore errors
+    const cleanSubscriptionData = Object.fromEntries(
+      Object.entries(subscriptionData).filter(([_, value]) => value !== undefined)
+    );
+
     const updateData = {
-      ...subscriptionData,
+      ...cleanSubscriptionData,
       updatedAt: Timestamp.now()
     };
 
@@ -193,8 +240,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     console.log('🔄 설정 업데이트 중');
 
+    // Remove undefined values to prevent Firestore errors
+    const cleanPreferencesData = Object.fromEntries(
+      Object.entries(preferencesData).filter(([_, value]) => value !== undefined)
+    );
+
     const updateData = {
-      ...preferencesData,
+      ...cleanPreferencesData,
       userId: user.uid,
       updatedAt: Timestamp.now()
     };

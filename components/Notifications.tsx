@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -8,6 +8,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useLoadingState } from '../hooks/useLoadingState';
+import { useNotifications } from '../hooks/useNotifications';
+import { notificationMonitor } from '../utils/notificationMonitor';
 import { 
   Bell, 
   Check, 
@@ -29,411 +31,92 @@ import {
 } from 'lucide-react';
 import { getPhaseColors, PhaseType } from '../utils/phaseColors';
 import { cn } from './ui/utils';
+import { VirtualizedList } from './VirtualizedList';
+import { NotificationItem } from './NotificationItem';
+import { useMemoizedCallback } from '../hooks/useMemoizedCallback';
+import { withPerformanceOptimization } from '../utils/performance';
 
-interface Notification {
-  id: string;
-  type: 'payment' | 'renewal' | 'expiry' | 'system';
-  title: string;
-  message: string;
-  date: string;
-  isRead: boolean;
-  priority: 'low' | 'medium' | 'high';
-  subscriptionId?: string;
-  category?: string;
-  metadata?: {
-    amount?: number;
-    currency?: 'KRW' | 'USD';
-    daysUntil?: number;
-    serviceName?: string;
-  };
-}
+// 기존 로컬 Notification 인터페이스는 제거하고 통합 타입 사용
+import { NotificationUI } from '../types/notifications';
 
 export function Notifications() {
   const { user } = useAuth();
-  const { subscriptions, preferences, loading } = useData();
+  const { subscriptions, preferences, loading: dataLoading } = useData();
   const { handleError } = useErrorHandler();
   const { isLoading, withLoading } = useLoadingState();
   const navigate = useNavigate();
   
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [filter, setFilter] = useState<'all' | 'unread' | 'payment' | 'system'>('all');
-  const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  // 통합 알림 훅 사용
+  const {
+    notifications,
+    filteredNotifications,
+    stats,
+    loading: notificationsLoading,
+    error: notificationError,
+    filter,
+    setFilter,
+    selectedNotifications,
+    setSelectedNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    deleteSelected,
+    markSelectedAsRead,
+    refresh,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    hasPermission,
+    requestPermission
+  } = useNotifications();
 
-  // 알림 권한 확인 및 요청
+  // 구독 데이터 변경 시 모니터링 시스템에 알림
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-      
-      // 권한이 허용되지 않은 경우 자동으로 요청
-      if (Notification.permission === 'default') {
-        Notification.requestPermission().then((permission) => {
-          setNotificationPermission(permission);
-          if (permission === 'granted') {
-            console.log('알림 권한이 허용되었습니다.');
-          } else if (permission === 'denied') {
-            console.log('알림 권한이 거부되었습니다.');
-          }
-        });
-      }
-    }
-  }, []);
-
-  // Category mapping with phase colors
-  const getCategoryPhase = (category: string): PhaseType => {
-    const categoryPhaseMap: Record<string, PhaseType> = {
-      '엔터테인먼트': 'shine',
-      '음악': 'growth',
-      '개발': 'challenge',
-      'AI': 'challenge',
-      '디자인': 'growth',
-      '생산성': 'beginning',
-      '교육': 'beginning',
-      '피트니스': 'challenge',
-      '뉴스': 'beginning',
-      '게임': 'shine',
-      '기타': 'beginning'
-    };
-    return categoryPhaseMap[category] || 'beginning';
-  };
-
-  // 알림 클릭 이벤트 리스너
-  useEffect(() => {
-    const handleNotificationClick = (event: any) => {
-      const tag = event.notification.tag;
-      if (tag && tag.startsWith('payment-')) {
-        const subscriptionId = tag.split('-')[1];
-        navigate(`/subscription/${subscriptionId}`);
-      }
-    };
-
-    if ('Notification' in window) {
-      // 알림 클릭 이벤트 리스너 등록
-      navigator.serviceWorker?.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
-          handleNotificationClick(event.data);
-        }
-      });
-    }
-
-    return () => {
-      // 클린업
-    };
-  }, [navigate]);
-
-  // Enhanced notification generation with better categorization
-  useEffect(() => {
-    const generateNotifications = () => {
-      const now = new Date();
-      const generatedNotifications: Notification[] = [];
-
-      // Generate payment notifications for each active subscription
-      if (subscriptions && Array.isArray(subscriptions)) {
-        subscriptions.forEach((sub) => {
-          if (sub.status === 'active') {
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-          let paymentDate = new Date(currentYear, currentMonth, sub.paymentDay);
-          
-          // 브라우저 알림 발송 (권한이 허용된 경우)
-          if (notificationPermission === 'granted' && preferences.notifications.paymentReminders) {
-            const daysUntilPayment = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            
-            // 7일 전 알림
-            if (daysUntilPayment === 7 && sub.notifications?.sevenDays) {
-              new Notification(`${sub.serviceName} 결제 예정`, {
-                body: `7일 후 ${sub.serviceName} 결제가 예정되어 있습니다. (${formatCurrency(sub.amount, sub.currency)})`,
-                icon: '/favicon.ico',
-                tag: `payment-${sub.id}-7days`,
-                requireInteraction: false
-              });
-            }
-            
-            // 3일 전 알림
-            if (daysUntilPayment === 3 && sub.notifications?.threeDays) {
-              new Notification(`${sub.serviceName} 결제 예정`, {
-                body: `3일 후 ${sub.serviceName} 결제가 예정되어 있습니다. (${formatCurrency(sub.amount, sub.currency)})`,
-                icon: '/favicon.ico',
-                tag: `payment-${sub.id}-3days`,
-                requireInteraction: false
-              });
-            }
-            
-            // 당일 알림
-            if (daysUntilPayment === 0 && sub.notifications?.sameDay) {
-              new Notification(`${sub.serviceName} 결제일`, {
-                body: `오늘 ${sub.serviceName} 결제일입니다. (${formatCurrency(sub.amount, sub.currency)})`,
-                icon: '/favicon.ico',
-                tag: `payment-${sub.id}-today`,
-                requireInteraction: true
-              });
-            }
-          }
-          
-          // If payment day has passed this month, calculate for next month
-          if (paymentDate < now) {
-            paymentDate.setMonth(paymentDate.getMonth() + 1);
-          }
-          
-          const daysUntilPayment = Math.ceil((paymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
-
-          // 7-day reminder
-          if (daysUntilPayment <= 7 && daysUntilPayment > 3 && sub.notifications?.sevenDays) {
-            generatedNotifications.push({
-              id: `${sub.id}-7days-${paymentDate.getTime()}`,
-              type: 'payment',
-              title: `${sub.serviceName} 결제 예정`,
-              message: `${daysUntilPayment}일 후 결제 예정입니다. 금액: ${amount.toLocaleString('ko-KR')}원`,
-              date: new Date().toISOString(),
-              isRead: Math.random() > 0.7,
-              priority: 'medium',
-              subscriptionId: sub.id,
-              category: sub.category,
-              metadata: {
-                amount: sub.amount,
-                currency: sub.currency,
-                daysUntil: daysUntilPayment,
-                serviceName: sub.serviceName
-              }
-            });
-          }
-          
-          // 3-day reminder
-          if (daysUntilPayment <= 3 && daysUntilPayment > 0 && sub.notifications?.threeDays) {
-            generatedNotifications.push({
-              id: `${sub.id}-3days-${paymentDate.getTime()}`,
-              type: 'payment',
-              title: `${sub.serviceName} 곧 결제`,
-              message: `${daysUntilPayment}일 후 자동 결제됩니다. 결제 수단을 확인해주세요.`,
-              date: new Date().toISOString(),
-              isRead: Math.random() > 0.5,
-              priority: 'high',
-              subscriptionId: sub.id,
-              category: sub.category,
-              metadata: {
-                amount: sub.amount,
-                currency: sub.currency,
-                daysUntil: daysUntilPayment,
-                serviceName: sub.serviceName
-              }
-            });
-          }
-          
-          // Same-day reminder
-          if (daysUntilPayment === 0 && sub.notifications?.sameDay) {
-            generatedNotifications.push({
-              id: `${sub.id}-today-${paymentDate.getTime()}`,
-              type: 'payment',
-              title: `${sub.serviceName} 오늘 결제`,
-              message: `오늘 자동 결제가 진행됩니다. 금액: ${amount.toLocaleString('ko-KR')}원`,
-              date: new Date().toISOString(),
-              isRead: false,
-              priority: 'high',
-              subscriptionId: sub.id,
-              category: sub.category,
-              metadata: {
-                amount: sub.amount,
-                currency: sub.currency,
-                daysUntil: daysUntilPayment,
-                serviceName: sub.serviceName
-              }
-            });
-          }
-        }
-      });
-      }
-
-      // Enhanced system notifications
-      generatedNotifications.push(
-        {
-          id: 'system-exchange-rate',
-          type: 'system',
-          title: '환율 업데이트',
-          message: `USD 환율이 ${preferences.exchangeRate.toLocaleString('ko-KR')}원으로 업데이트되었습니다. 구독료가 자동으로 재계산됩니다.`,
-          date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          isRead: true,
-          priority: 'low'
-        },
-        {
-          id: 'system-monthly-report',
-          type: 'system',
-          title: '월간 리포트 준비 완료',
-          message: `이번 달 구독 사용 리포트가 준비되었습니다. 총 ${(subscriptions || []).filter(s => s.status === 'active').length}개의 활성 구독으로 ${(subscriptions || []).reduce((total, sub) => {
-            const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
-            const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
-            return total + (sub.status === 'active' ? monthlyAmount : 0);
-          }, 0).toLocaleString('ko-KR')}원을 지출하고 있습니다.`,
-          date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          isRead: false,
-          priority: 'medium'
-        },
-        {
-          id: 'system-optimization-tip',
-          type: 'system',
-          title: '구독 최적화 제안',
-          message: '중복되거나 사용하지 않는 구독이 있는지 확인해보세요. 월 평균 3-5개의 구독이 적정 수준입니다.',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          isRead: Math.random() > 0.3,
-          priority: 'low'
-        },
-        {
-          id: 'system-new-feature',
-          type: 'system',
-          title: '새로운 기능 추가',
-          message: 'Phase 색상 시스템과 카테고리별 분석 기능이 추가되었습니다. 더욱 직관적으로 구독을 관리해보세요.',
-          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          isRead: Math.random() > 0.4,
-          priority: 'medium'
-        }
-      );
-
-      // Sort by priority and date
-      generatedNotifications.sort((a, b) => {
-        const priorityOrder = { high: 3, medium: 2, low: 1 };
-        const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
-        if (priorityDiff !== 0) return priorityDiff;
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      });
-      
-      setNotifications(generatedNotifications);
-    };
-
-    generateNotifications();
-  }, [subscriptions, preferences.exchangeRate]);
-
-  // Enhanced refresh function
-  const handleRefresh = async () => {
-    await withLoading('refresh', async () => {
-      try {
-        console.log('✅ Firebase 실시간 데이터 새로고침');
-      } catch (error) {
-        handleError(error, '데이터 새로고침에 실패했습니다.');
+    if (!user?.uid || !subscriptions) return;
+    
+    // 구독 변경 사항을 모니터링 시스템에 알림
+    subscriptions.forEach(subscription => {
+      if (subscription.id) {
+        // 이전 상태와 비교해서 변경 사항이 있으면 이벤트 발생
+        // 현재는 간단히 결제 예정일만 확인
+        notificationMonitor.checkPaymentDue(user.uid, [subscription]);
       }
     });
-  };
+  }, [user?.uid, subscriptions]);
 
-  // Calculate filtered notifications and enhanced stats
-  const { filteredNotifications, stats } = useMemo(() => {
-    let filtered = notifications;
-    
-    switch (filter) {
-      case 'unread':
-        filtered = notifications.filter(n => !n.isRead);
-        break;
-      case 'payment':
-        filtered = notifications.filter(n => n.type === 'payment');
-        break;
-      case 'system':
-        filtered = notifications.filter(n => n.type === 'system');
-        break;
-      default:
-        filtered = notifications;
+
+  // 권한 요청 처리
+  const handlePermissionRequest = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      console.log('✅ 알림 권한이 허용되었습니다.');
+    } else {
+      console.log('❌ 알림 권한이 거부되었습니다.');
     }
-
-    const stats = {
-      total: notifications.length,
-      unread: notifications.filter(n => !n.isRead).length,
-      payment: notifications.filter(n => n.type === 'payment').length,
-      system: notifications.filter(n => n.type === 'system').length,
-      high: notifications.filter(n => n.priority === 'high').length,
-      medium: notifications.filter(n => n.priority === 'medium').length,
-      low: notifications.filter(n => n.priority === 'low').length,
-      todayPayments: notifications.filter(n => 
-        n.type === 'payment' && n.metadata?.daysUntil === 0
-      ).length
-    };
-
-    return { filteredNotifications: filtered, stats };
-  }, [notifications, filter]);
-
-  // Enhanced notification actions
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, isRead: true }))
-    );
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const deleteSelectedNotifications = () => {
-    setNotifications(prev => prev.filter(n => !selectedNotifications.includes(n.id)));
-    setSelectedNotifications([]);
-  };
-
-  const markSelectedAsRead = () => {
-    setNotifications(prev => 
-      prev.map(n => selectedNotifications.includes(n.id) ? { ...n, isRead: true } : n)
-    );
-    setSelectedNotifications([]);
-  };
-
-  const toggleSelection = (id: string) => {
-    setSelectedNotifications(prev => 
-      prev.includes(id) 
-        ? prev.filter(nId => nId !== id)
-        : [...prev, id]
-    );
-  };
-
-  const selectAll = () => {
-    setSelectedNotifications(filteredNotifications.map(n => n.id));
-  };
-
-  const clearSelection = () => {
-    setSelectedNotifications([]);
-  };
-
-  // Enhanced notification styling helpers
-  const getNotificationIcon = (type: string, priority: string) => {
-    if (type === 'payment') {
-      return priority === 'high' ? AlertTriangle : CreditCard;
-    }
-    return type === 'system' ? Info : Bell;
-  };
-
-  const getNotificationColor = (type: string, priority: string) => {
-    if (type === 'payment') {
-      switch (priority) {
-        case 'high': return 'text-error-400';
-        case 'medium': return 'text-warning-400';
-        default: return 'text-white';
+  // Enhanced refresh function with memoization
+  const handleRefresh = useMemoizedCallback(async () => {
+    await withLoading('refresh', async () => {
+      try {
+        await refresh();
+        console.log('✅ 알림 새로고침 완료');
+      } catch (error) {
+        handleError(error, '알림 새로고침에 실패했습니다.');
       }
-    }
-    return 'text-info-400';
-  };
+    });
+  }, [refresh, withLoading, handleError]);
 
-  const getNotificationBgColor = (type: string, priority: string) => {
-    if (type === 'payment') {
-      switch (priority) {
-        case 'high': return 'bg-error-500/20';
-        case 'medium': return 'bg-warning-500/20';
-        default: return 'bg-success-500/20';
-      }
+  // 에러 처리
+  useEffect(() => {
+    if (notificationError) {
+      handleError(notificationError, notificationError.message);
     }
-    return 'bg-info-500/20';
-  };
+  }, [notificationError, handleError]);
 
-  const getPriorityBadgeClass = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-error-500/20 text-error-300 border-error-500/30';
-      case 'medium':
-        return 'bg-warning-500/20 text-warning-300 border-warning-500/30';
-      default:
-        return 'bg-info-500/20 text-info-300 border-info-500/30';
-    }
-  };
+  // 메모이제이션된 날짜 포맷팅 함수
 
-  const formatRelativeTime = (dateString: string) => {
+  const formatRelativeTime = useCallback((dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
@@ -451,12 +134,12 @@ export function Notifications() {
       month: 'short',
       day: 'numeric'
     });
-  };
+  }, []);
 
-  const formatCurrency = (amount: number, currency: 'KRW' | 'USD') => {
-    const finalAmount = currency === 'USD' ? amount * preferences.exchangeRate : amount;
+  const formatCurrency = useCallback((amount: number, currency: 'KRW' | 'USD') => {
+    const finalAmount = currency === 'USD' ? amount * (preferences?.exchangeRate || 1) : amount;
     return finalAmount.toLocaleString('ko-KR') + '원';
-  };
+  }, [preferences?.exchangeRate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -493,7 +176,7 @@ export function Notifications() {
                 <p className="text-base-ko text-white/70 text-high-contrast tracking-ko-normal break-keep-ko">
                   {user?.name || user?.email?.split('@')[0]}님의 알림 • 
                   <span className="ml-2 text-primary-400">
-                    총 {stats.total}개 {stats.todayPayments > 0 && `• 오늘 결제 ${stats.todayPayments}건`}
+                    총 {stats.total}개 {stats.todayCount > 0 && `• 오늘 알림 ${stats.todayCount}건`}
                   </span>
                 </p>
               </div>
@@ -542,23 +225,23 @@ export function Notifications() {
               { 
                 key: 'payment', 
                 label: '결제 알림', 
-                count: stats.payment, 
+                count: stats.byType.payment, 
                 color: 'success',
                 icon: CreditCard,
-                change: stats.todayPayments > 0 ? 'urgent' : null
+                change: stats.todayCount > 0 ? 'urgent' : null
               },
               { 
                 key: 'high', 
                 label: '높은 우선순위', 
-                count: stats.high, 
+                count: stats.byPriority.high, 
                 color: 'error',
                 icon: AlertTriangle,
-                change: stats.high > 0 ? 'attention' : null
+                change: stats.byPriority.high > 0 ? 'attention' : null
               }
             ].map((stat) => {
               const IconComponent = stat.icon;
-              const isSelected = (stat.key === 'unread' && filter === 'unread') ||
-                               (stat.key === 'payment' && filter === 'payment');
+              const isSelected = (stat.key === 'unread' && filter.status === 'unread') ||
+                               (stat.key === 'payment' && filter.type === 'payment');
               
               return (
                 <GlassCard 
@@ -570,8 +253,8 @@ export function Notifications() {
                     (stat.key === 'unread' || stat.key === 'payment') && "cursor-pointer"
                   )}
                   onClick={() => {
-                    if (stat.key === 'unread') setFilter('unread');
-                    else if (stat.key === 'payment') setFilter('payment');
+                    if (stat.key === 'unread') setFilter({ ...filter, status: 'unread', type: 'all' });
+                    else if (stat.key === 'payment') setFilter({ ...filter, type: 'payment', status: 'all' });
                   }}
                 >
                   <div className="flex items-center justify-between mb-token-sm">
@@ -626,18 +309,22 @@ export function Notifications() {
                 {[
                   { key: 'all', label: '전체', count: stats.total, icon: Archive },
                   { key: 'unread', label: '읽지 않음', count: stats.unread, icon: Bell },
-                  { key: 'payment', label: '결제 알림', count: stats.payment, icon: CreditCard },
-                  { key: 'system', label: '시스템', count: stats.system, icon: Info }
+                  { key: 'payment', label: '결제 알림', count: stats.byType.payment, icon: CreditCard },
+                  { key: 'system', label: '시스템', count: stats.byType.system, icon: Info }
                 ].map((tab) => {
                   const IconComponent = tab.icon;
-                  const isActive = filter === tab.key;
+                  const isActive = filter.type === tab.key || (tab.key === 'all' && (!filter.type || filter.type === 'all'));
                   
                   return (
                     <WaveButton
                       key={tab.key}
                       variant={isActive ? "primary" : "ghost"}
                       size="sm"
-                      onClick={() => setFilter(tab.key as any)}
+                      onClick={() => setFilter({ 
+                        ...filter, 
+                        type: tab.key === 'all' ? 'all' : tab.key as any,
+                        status: tab.key === 'unread' ? 'unread' : filter.status
+                      })}
                       className={cn(
                         "transition-all duration-200 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 text-white touch-target-sm focus-ring",
                         isActive && "shadow-lg shadow-primary-500/20"
@@ -703,7 +390,7 @@ export function Notifications() {
                       <WaveButton
                         variant="ghost"
                         size="sm"
-                        onClick={deleteSelectedNotifications}
+                        onClick={deleteSelected}
                         className="text-error-400 hover:text-error-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target-sm focus-ring"
                       >
                         <Trash2 size={14} className="mr-1 icon-enhanced text-white" />
@@ -730,193 +417,53 @@ export function Notifications() {
 
           {/* Enhanced Notifications List */}
           {filteredNotifications.length > 0 ? (
-            <div className="space-y-token-sm">
-              {filteredNotifications.map((notification) => {
-                const IconComponent = getNotificationIcon(notification.type, notification.priority);
-                const iconColor = getNotificationColor(notification.type, notification.priority);
-                const bgColor = getNotificationBgColor(notification.type, notification.priority);
-                const isSelected = selectedNotifications.includes(notification.id);
-                const phaseColors = notification.category ? getPhaseColors(getCategoryPhase(notification.category)) : null;
-                
-                return (
-                  <GlassCard 
+            filteredNotifications.length > 50 ? (
+              // 50개 이상의 알림은 가상화된 리스트 사용
+              <VirtualizedList
+                items={filteredNotifications}
+                itemHeight={200} // 대략적인 알림 아이템 높이
+                containerHeight={800} // 컨테이너 높이
+                className="space-y-token-sm"
+                renderItem={(notification, index) => (
+                  <NotificationItem
                     key={notification.id}
-                    variant={notification.isRead ? "light" : "strong"}
-                    className={cn(
-                      "transition-all duration-200 hover:border-white/30 hover:bg-white/5 touch-target",
-                      !notification.isRead && "ring-1 ring-primary-500/30",
-                      isSelected && "ring-2 ring-primary-500/50 bg-primary-500/10",
-                      notification.priority === 'high' && !notification.isRead && "shadow-lg shadow-error-500/20"
-                    )}
-                  >
-                    <div className="p-token-lg">
-                      <div className="flex items-start space-x-token-md">
-                        {/* Selection Checkbox */}
-                        <button
-                          onClick={() => toggleSelection(notification.id)}
-                          className={cn(
-                            "w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0 mt-1 touch-target-sm focus-ring",
-                            isSelected 
-                              ? "bg-primary-500 border-primary-500" 
-                              : "border-white/30 hover:border-white/50"
-                          )}
-                          aria-label={isSelected ? "선택 해제" : "선택"}
-                        >
-                          {isSelected && <Check size={12} className="text-white icon-enhanced" />}
-                        </button>
-
-                        {/* Icon */}
-                        <div className={cn(
-                          "p-token-sm rounded-lg flex-shrink-0",
-                          bgColor
-                        )}>
-                          <IconComponent size={20} className={cn(iconColor, "icon-enhanced")} />
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-token-sm">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-token-sm mb-1">
-                                <h3 className={cn(
-                                  "font-medium text-lg-ko tracking-ko-normal break-keep-ko",
-                                  notification.isRead ? "text-white/80" : "text-white-force"
-                                )}>
-                                  {notification.title}
-                                </h3>
-                                
-                                {/* Category Phase Indicator */}
-                                {phaseColors && (
-                                  <span className={cn("w-2 h-2 rounded-full", phaseColors.bg)}></span>
-                                )}
-                                
-                                {/* Read Status */}
-                                {!notification.isRead && (
-                                  <span className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></span>
-                                )}
-                              </div>
-                              
-                              <p className={cn(
-                                "text-sm-ko break-words tracking-ko-normal",
-                                notification.isRead ? "text-white/50" : "text-white/70"
-                              )}>
-                                {notification.message}
-                              </p>
-                            </div>
-
-                            {/* Priority Badge */}
-                            <span className={cn(
-                              "text-xs-ko px-2 py-1 rounded-full border ml-token-md flex-shrink-0 tracking-ko-normal",
-                              getPriorityBadgeClass(notification.priority)
-                            )}>
-                              {notification.priority === 'high' ? '높음' : 
-                               notification.priority === 'medium' ? '보통' : '낮음'}
-                            </span>
-                          </div>
-
-                          {/* Enhanced Metadata */}
-                          {notification.metadata && (
-                            <div className="mb-token-sm p-token-sm bg-white/5 rounded-lg">
-                              <div className="flex items-center justify-between text-sm-ko">
-                                {notification.metadata.amount && notification.metadata.currency && (
-                                  <div className="flex items-center space-x-token-xs text-white/60">
-                                    <DollarSign size={14} className="icon-enhanced" />
-                                    <span className="font-medium text-white-force tracking-ko-normal">
-                                      {formatCurrency(notification.metadata.amount, notification.metadata.currency)}
-                                    </span>
-                                    {notification.metadata.currency === 'USD' && (
-                                      <span className="text-xs-ko text-white/40 tracking-ko-normal">
-                                        (${notification.metadata.amount})
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                                
-                                {notification.metadata.daysUntil !== undefined && (
-                                  <div className="flex items-center space-x-token-xs text-white/60">
-                                    <Clock size={14} className="icon-enhanced" />
-                                    <span className={cn(
-                                      "font-medium tracking-ko-normal",
-                                      notification.metadata.daysUntil === 0 ? "text-error-400" :
-                                      notification.metadata.daysUntil <= 3 ? "text-warning-400" : ""
-                                    )}>
-                                      {notification.metadata.daysUntil === 0 ? '오늘' : 
-                                       notification.metadata.daysUntil === 1 ? '내일' :
-                                       `${notification.metadata.daysUntil}일 후`}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Footer */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-token-sm text-xs-ko text-white/40 tracking-ko-normal">
-                              <span>{formatRelativeTime(notification.date)}</span>
-                              {notification.category && (
-                                <>
-                                  <span>•</span>
-                                  <span className="break-keep-ko">{notification.category}</span>
-                                </>
-                              )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center space-x-1">
-                              {!notification.isRead && (
-                                <WaveButton
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => markAsRead(notification.id)}
-                                  className="p-1.5 text-white hover:text-white/80 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target-sm focus-ring"
-                                  ariaLabel="읽음 처리"
-                                >
-                                  <Check size={14} className="icon-enhanced" />
-                                </WaveButton>
-                              )}
-                              
-                              {notification.subscriptionId && (
-                                <Link to={`/subscriptions/${notification.subscriptionId}`}>
-                                  <WaveButton
-                                    variant="ghost"
-                                    size="sm"
-                                    className="p-1.5 text-primary-400 hover:text-primary-300 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target-sm focus-ring"
-                                    ariaLabel="구독 상세보기"
-                                  >
-                                    <Eye size={14} className="icon-enhanced" />
-                                  </WaveButton>
-                                </Link>
-                              )}
-                              
-                              <WaveButton
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteNotification(notification.id)}
-                                className="p-1.5 text-white/40 hover:text-error-400 hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target-sm focus-ring"
-                                ariaLabel="삭제"
-                              >
-                                <Trash2 size={14} className="icon-enhanced" />
-                              </WaveButton>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </GlassCard>
-                );
-              })}
-            </div>
+                    notification={notification}
+                    isSelected={selectedNotifications.includes(notification.id)}
+                    onToggleSelection={toggleSelection}
+                    onMarkAsRead={markAsRead}
+                    onDelete={deleteNotification}
+                    formatCurrency={formatCurrency}
+                    formatRelativeTime={formatRelativeTime}
+                  />
+                )}
+              />
+            ) : (
+              // 50개 이하는 일반 리스트 사용
+              <div className="space-y-token-sm">
+                {filteredNotifications.map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    isSelected={selectedNotifications.includes(notification.id)}
+                    onToggleSelection={toggleSelection}
+                    onMarkAsRead={markAsRead}
+                    onDelete={deleteNotification}
+                    formatCurrency={formatCurrency}
+                    formatRelativeTime={formatRelativeTime}
+                  />
+                ))}
+              </div>
+            )
           ) : (
             /* Enhanced Empty State */
             <GlassCard variant="light" className="p-token-2xl">
               <div className="text-center max-w-md mx-auto">
                 <div className="w-20 h-20 bg-gradient-to-br from-primary-500/20 to-secondary-500/20 rounded-full flex items-center justify-center mx-auto mb-token-lg">
-                  {filter === 'all' ? (
+                  {(!filter.type || filter.type === 'all') ? (
                     <Bell size={40} className="text-white/40 icon-enhanced" />
-                  ) : filter === 'payment' ? (
+                  ) : filter.type === 'payment' ? (
                     <CreditCard size={40} className="text-white/40 icon-enhanced" />
-                  ) : filter === 'system' ? (
+                  ) : filter.type === 'system' ? (
                     <Info size={40} className="text-white/40 icon-enhanced" />
                   ) : (
                     <EyeOff size={40} className="text-white/40 icon-enhanced" />
@@ -924,24 +471,25 @@ export function Notifications() {
                 </div>
                 
                 <h3 className="text-xl-ko font-semibold mb-token-sm text-white-force tracking-ko-normal break-keep-ko">
-                  {filter === 'all' ? '알림이 없습니다' : 
-                   filter === 'unread' ? '읽지 않은 알림이 없습니다' :
-                   filter === 'payment' ? '결제 알림이 없습니다' :
-                   '시스템 알림이 없습니다'}
+                  {(!filter.type || filter.type === 'all') && (!filter.status || filter.status === 'all') ? '알림이 없습니다' : 
+                   filter.status === 'unread' ? '읽지 않은 알림이 없습니다' :
+                   filter.type === 'payment' ? '결제 알림이 없습니다' :
+                   filter.type === 'system' ? '시스템 알림이 없습니다' :
+                   '조건에 맞는 알림이 없습니다'}
                 </h3>
                 
                 <p className="text-base-ko text-white/60 mb-token-lg leading-relaxed tracking-ko-normal break-keep-ko">
-                  {filter === 'all' ? 
+                  {(!filter.type || filter.type === 'all') && (!filter.status || filter.status === 'all') ? 
                     '새로운 알림이 도착하면 여기에 표시됩니다.\n구독 활동에 따라 자동으로 생성됩니다.' :
                     '조건에 맞는 알림이 없습니다.\n다른 필터를 확인해보세요.'
                   }
                 </p>
                 
                 <div className="flex justify-center space-x-token-sm">
-                  {filter !== 'all' ? (
+                  {(filter.type && filter.type !== 'all') || (filter.status && filter.status !== 'all') ? (
                     <WaveButton
                       variant="secondary"
-                      onClick={() => setFilter('all')}
+                      onClick={() => setFilter({ type: 'all', status: 'all' })}
                       className="hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target focus-ring"
                     >
                       <Archive size={16} className="mr-token-xs icon-enhanced text-white" />

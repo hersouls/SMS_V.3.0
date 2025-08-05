@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오프라인 - Moonwave</title>
+    <link rel="icon" href="/moonwave.svg" type="image/svg+xml">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .offline-container {
+            text-align: center;
+            max-width: 480px;
+            width: 100%;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .offline-icon {
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .offline-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .offline-message {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .offline-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.9);
+            color: #4c63d2;
+            border: 2px solid transparent;
+        }
+
+        .btn-primary:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .network-status {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .status-online {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-offline {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .tips {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            text-align: left;
+        }
+
+        .tips h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .tips ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .tips li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .tips li::before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+        }
+
+        @media (max-width: 480px) {
+            .offline-container {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+            
+            .offline-title {
+                font-size: 1.5rem;
+            }
+            
+            .offline-icon {
+                font-size: 4rem;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">📡</div>
+        <h1 class="offline-title">오프라인 상태</h1>
+        <p class="offline-message">
+            인터넷 연결을 확인할 수 없습니다.<br>
+            네트워크 연결을 확인하고 다시 시도해주세요.
+        </p>
+        
+        <div class="offline-actions">
+            <button class="btn btn-primary" onclick="retryConnection()">
+                <span id="retry-text">다시 시도</span>
+                <span id="retry-loading" class="loading" style="display: none;"></span>
+            </button>
+            <a href="/" class="btn btn-secondary">홈으로 이동</a>
+        </div>
+
+        <div id="network-status" class="network-status status-offline">
+            <strong>상태:</strong> <span id="status-text">오프라인</span>
+        </div>
+
+        <div class="tips">
+            <h3>📋 오프라인에서도 가능한 작업</h3>
+            <ul>
+                <li>캐시된 구독 정보 확인</li>
+                <li>이전에 조회한 통계 데이터 보기</li>
+                <li>오프라인 상태에서 작성한 내용은 온라인 복구 시 자동 동기화</li>
+                <li>PWA 앱으로 설치하여 더 나은 오프라인 경험 제공</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let isRetrying = false;
+
+        // 네트워크 상태 확인 및 업데이트
+        function updateNetworkStatus() {
+            const statusElement = document.getElementById('network-status');
+            const statusText = document.getElementById('status-text');
+            
+            if (navigator.onLine) {
+                statusElement.className = 'network-status status-online';
+                statusText.textContent = '온라인 (연결됨)';
+            } else {
+                statusElement.className = 'network-status status-offline';
+                statusText.textContent = '오프라인 (연결 안됨)';
+            }
+        }
+
+        // 연결 재시도
+        async function retryConnection() {
+            if (isRetrying) return;
+            
+            isRetrying = true;
+            const retryText = document.getElementById('retry-text');
+            const retryLoading = document.getElementById('retry-loading');
+            
+            retryText.style.display = 'none';
+            retryLoading.style.display = 'inline-block';
+            
+            try {
+                // 간단한 네트워크 테스트
+                const response = await fetch('/', { 
+                    method: 'HEAD',
+                    cache: 'no-cache',
+                    mode: 'no-cors'
+                });
+                
+                // 성공하면 페이지 새로고침
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+                
+            } catch (error) {
+                // 실패하면 상태 업데이트
+                setTimeout(() => {
+                    retryText.style.display = 'inline';
+                    retryLoading.style.display = 'none';
+                    isRetrying = false;
+                    updateNetworkStatus();
+                }, 1000);
+            }
+        }
+
+        // 네트워크 상태 이벤트 리스너
+        window.addEventListener('online', () => {
+            updateNetworkStatus();
+            // 온라인 복구 시 자동으로 홈으로 이동
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
+        });
+
+        window.addEventListener('offline', updateNetworkStatus);
+
+        // 초기 상태 설정
+        updateNetworkStatus();
+
+        // 주기적으로 연결 상태 확인 (30초마다)
+        setInterval(() => {
+            if (!isRetrying) {
+                updateNetworkStatus();
+            }
+        }, 30000);
+
+        // 키보드 단축키 (R키로 새로고침)
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'r' || event.key === 'R') {
+                event.preventDefault();
+                retryConnection();
+            }
+        });
+
+        // PWA 설치 유도 메시지 (필요시)
+        if ('serviceWorker' in navigator) {
+            console.log('🔧 Service Worker 지원됨 - PWA 오프라인 기능 활성화');
+        }
+    </script>
+</body>
+</html>

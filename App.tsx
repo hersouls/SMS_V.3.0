@@ -22,8 +22,8 @@ const TermsOfService = React.lazy(() => import('./components/TermsOfService').th
 const FirebaseDebugger = React.lazy(() => import('./components/FirebaseDebugger').then(module => ({ default: module.default })));
 const OAuthDebugger = React.lazy(() => import('./components/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 const AuthCallback = React.lazy(() => import('./components/AuthCallback').then(module => ({ default: module.AuthCallback })));
-const SupabaseTestDashboard = React.lazy(() => import('./components/SupabaseTestDashboard').then(module => ({ default: module.SupabaseTestDashboard })));
 const MusicPlayer = React.lazy(() => import('./components/MusicPlayer').then(module => ({ default: module.MusicPlayer })));
+const AuthDebugger = React.lazy(() => import('./components/AuthDebugger').then(module => ({ default: module.AuthDebugger })));
 
 
 // Loading component
@@ -35,6 +35,8 @@ const LoadingSpinner = () => (
 
 import { WaveBackground } from './components/WaveBackground';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { NetworkErrorFallback } from './components/NetworkErrorFallback';
 
 // Authenticated Music Player Component - 임시로 비활성화
 function AuthenticatedMusicPlayer() {
@@ -49,20 +51,25 @@ function AuthenticatedMusicPlayer() {
 // Firebase client imports
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
-import { checkAuthStatus } from './utils/firebase/config';
+import { checkAuthStatus, auth } from './utils/firebase/config';
 import { signInWithEmail, signInWithGoogle, signOutUser } from './utils/firebase/client';
+import { onAuthStateChanged } from 'firebase/auth';
 import { apiService } from './utils/api';
 import { getOAuthErrorMessage, checkOAuthStatus } from './utils/oauth';
 import { 
   updateStatisticsOnSubscriptionChange, 
   trackUserBehavior,
   collectAndSaveAllStatistics,
-
 } from './utils/statistics';
 
-// Supabase 테스트 도구 (개발 모드에서만) - 사용되지 않으므로 주석 처리
+// 알림 서비스 초기화
+import { notificationService } from './utils/notificationService';
+import { notificationMonitor } from './utils/notificationMonitor';
+import { useNotifications } from './hooks/useNotifications';
+
 // Firebase auth and data hooks
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
+import { useAuth } from './contexts/AuthContext';
 
 // Types
 export interface Subscription {
@@ -349,6 +356,9 @@ export const useApp = () => {
 };
 
 function AppProvider({ children }: { children: ReactNode }) {
+  // AuthContext에서 인증 상태 가져오기
+  const { user: authUser, loading: authLoading, isAuthenticated, signIn, signInWithGoogle, signOut } = useAuth();
+  
   const [user, setUser] = useState<User | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [preferences, setPreferences] = useState<UserPreferences>({
@@ -404,163 +414,98 @@ function AppProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  // Initialize authentication state
+  // AuthContext의 사용자 상태와 동기화
   useEffect(() => {
-    console.log('🔄 App: initializeAuth useEffect 시작');
-    const initializeAuth = async () => {
-      try {
-        console.log('🔍 App: getSession 호출 중...');
-        
-        // URL에 OAuth 콜백 파라미터가 있는지 확인
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlHash = window.location.hash;
-        const hasOAuthParams = urlParams.has('code') || urlParams.has('access_token') || urlHash.includes('access_token');
-        
-        console.log('🔍 App: OAuth 파라미터 확인:', {
-          hasCode: urlParams.has('code'),
-          hasAccessToken: urlParams.has('access_token') || urlHash.includes('access_token'),
-          currentPath: window.location.pathname,
-          hasOAuthParams
-        });
-
-        // OAuth 콜백 처리 중이면 세션 처리를 지연
-        if (hasOAuthParams && window.location.pathname !== '/auth/callback') {
-          console.log('🔄 App: OAuth 콜백 파라미터 감지, /auth/callback으로 리다이렉트');
-          window.location.href = '/auth/callback' + window.location.search + window.location.hash;
-          return;
-        }
-
-        // Firebase auth status check
-        const { isAuthenticated, user: firebaseUser, error } = await checkAuthStatus();
-        console.log('📋 App: Firebase 인증 상태:', { isAuthenticated, hasUser: !!firebaseUser });
-        
-        if (isAuthenticated && firebaseUser) {
-          console.log('✅ App: Firebase 인증된 사용자 발견, 사용자 설정 중...');
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            joinDate: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime).toISOString().split('T')[0]! : new Date().toISOString().split('T')[0]!,
-            name: firebaseUser.displayName || undefined
-          });
-          
-          // Firebase access token will be handled by Firebase context
-          console.log('🔑 Initial auth - Firebase user authenticated');
-          
-          console.log('🚀 Initial auth - Calling loadUserData...');
-          try {
-            await loadUserData();
-          } catch (loadError) {
-            console.error('⚠️ loadUserData 실패, 기본 상태로 계속 진행:', loadError);
-          }
-        } else {
-          console.log('❌ App: 세션 또는 사용자가 없음, 로그아웃 상태로 설정');
-        }
-      } catch (error) {
-        console.error('💥 App: Error initializing auth:', error);
-      } finally {
-        console.log('🏁 App: initializeAuth 완료, isLoading을 false로 설정');
+    console.log('🔄 App: AuthContext 상태 동기화:', {
+      hasAuthUser: !!authUser,
+      email: authUser?.email,
+      authLoading,
+      isAuthenticated
+    });
+    
+    if (authLoading) {
+      console.log('⏳ App: AuthContext 로딩 중');
+      setIsLoading(true);
+      return;
+    }
+    
+    if (authUser && isAuthenticated) {
+      console.log('✅ App: AuthContext에서 인증된 사용자 감지, App Context 업데이트');
+      const appUser: User = {
+        id: authUser.uid,
+        email: authUser.email || '',
+        joinDate: authUser.metadata.creationTime ? new Date(authUser.metadata.creationTime).toISOString().split('T')[0]! : new Date().toISOString().split('T')[0]!,
+        name: authUser.displayName || undefined
+      };
+      
+      setUser(appUser);
+      
+      // 사용자 데이터 로드
+      loadUserData().catch(error => {
+        console.error('⚠️ loadUserData 실패:', error);
+      }).finally(() => {
         setIsLoading(false);
-      }
-    };
-
-    const handleSessionExpired = async () => {
-      try {
-        // 사용자 행동 추적
-        if (user) {
-          await trackUserBehavior(user.id, { action: 'session_expired' });
+      });
+    } else {
+      console.log('❌ App: AuthContext에서 로그아웃 상태 감지, App Context 초기화');
+      setUser(null);
+      setSubscriptions([]);
+      setNotifications([]);
+      setCategories([]);
+      setStats({
+        totalSubscriptions: 0,
+        activeSubscriptions: 0,
+        pausedSubscriptions: 0,
+        cancelledSubscriptions: 0,
+        totalMonthlyKrw: 0,
+        avgSubscriptionCost: 0,
+        upcomingPayments: 0,
+        todayCount: 0,
+        weekCount: 0,
+        categoryBreakdown: {},
+        paymentCycleBreakdown: {
+          monthly: { count: 0, totalAmount: 0 },
+          yearly: { count: 0, totalAmount: 0 },
+          onetime: { count: 0, totalAmount: 0 }
+        },
+        currencyBreakdown: {
+          KRW: { count: 0, totalAmount: 0 },
+          USD: { count: 0, totalAmount: 0 }
+        },
+        notificationStats: {
+          sevenDays: 0,
+          threeDays: 0,
+          sameDay: 0,
+          totalWithNotifications: 0
+        },
+        autoRenewalStats: {
+          enabled: 0,
+          disabled: 0,
+          percentage: 0
         }
-        
-        // 로그아웃 처리
-        // Firebase signOut will be handled by AuthContext
-        
-        // 로컬 상태 초기화
-        setUser(null);
-        setSubscriptions([]);
-        setPreferences({
-          exchangeRate: 1300,
-          defaultCurrency: 'KRW',
-          notifications: {
-            paymentReminders: true,
-            priceChanges: true,
-            subscriptionExpiry: true,
-            email: true,
-            push: true,
-            sms: false,
-          },
-          theme: 'auto',
-          language: 'ko',
-          timezone: 'Asia/Seoul',
-          dateFormat: 'YYYY-MM-DD',
-          currencyFormat: 'KRW',
-        });
-        setNotifications([]);
-        setCategories([]);
-        setStats({
-          totalSubscriptions: 0,
-          activeSubscriptions: 0,
-          pausedSubscriptions: 0,
-          cancelledSubscriptions: 0,
-          totalMonthlyKrw: 0,
-          avgSubscriptionCost: 0,
-          upcomingPayments: 0,
-          todayCount: 0,
-          weekCount: 0,
-          categoryBreakdown: {},
-          paymentCycleBreakdown: {
-            monthly: { count: 0, totalAmount: 0 },
-            yearly: { count: 0, totalAmount: 0 },
-            onetime: { count: 0, totalAmount: 0 },
-          },
-          currencyBreakdown: {
-            KRW: { count: 0, totalAmount: 0 },
-            USD: { count: 0, totalAmount: 0 },
-          },
-          notificationStats: {
-            sevenDays: 0,
-            threeDays: 0,
-            sameDay: 0,
-            totalWithNotifications: 0,
-          },
-          autoRenewalStats: {
-            enabled: 0,
-            disabled: 0,
-            percentage: 0,
-          },
-        });
-        
-        console.log('세션 만료로 인해 로그아웃되었습니다.');
-      } catch (error) {
-        console.error('Session expired handling error:', error);
-      }
-    };
-
-    initializeAuth();
-
-    // Firebase auth state listener will be handled by AuthContext
-    // No need for manual subscription cleanup as it's handled by the context
-  }, []);
+      });
+      setIsLoading(false);
+    }
+  }, [authUser, authLoading, isAuthenticated]);
 
   // 구독 데이터나 설정이 변경될 때마다 통계 업데이트
   useEffect(() => {
-    if ((subscriptions && subscriptions.length > 0) || preferences.exchangeRate) {
+    if ((subscriptions && subscriptions.length > 0) || preferences?.exchangeRate) {
       const newStats = calculateStats();
       setStats(newStats);
     }
-  }, [subscriptions, preferences.exchangeRate]);
+      }, [subscriptions, preferences?.exchangeRate]);
 
   const loadUserData = async () => {
     try {
       console.log('🔄 loadUserData 시작');
-      console.log('🔍 현재 isLoading 상태:', isLoading);
       
-      // Firebase auth check
-      const { isAuthenticated } = await checkAuthStatus();
-      if (!isAuthenticated) {
-        console.error('❌ Firebase 인증이 필요합니다.');
+      if (!authUser) {
+        console.error('❌ 인증된 사용자가 없습니다.');
         throw new Error('사용자 인증이 필요합니다.');
       }
       
-      console.log('✅ Firebase 인증 확인됨');
+      console.log('✅ 인증된 사용자 확인됨:', authUser.email);
       
       // 데이터 로딩 중 상태 표시
       const loadingSteps = {
@@ -737,109 +682,35 @@ function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      // Firebase auth
-      const { user, error } = await signInWithEmail(email, password);
-
-      if (error) {
-        // 더 구체적인 에러 메시지 제공
-        let errorMessage = '로그인에 실패했습니다.';
-        
-        if (error?.code === 'auth/invalid-credential') {
-          errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-        } else if (error?.code === 'auth/too-many-requests') {
-          errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      if (user) {
-        // 사용자 행동 추적
-        await trackUserBehavior(user.uid, { action: 'login' });
-        
-        // 통계 데이터 초기화 (필요한 경우)
-        try {
-          await collectAndSaveAllStatistics(user.uid);
-        } catch (error) {
-          console.warn('통계 데이터 초기화 실패:', error);
-        }
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+    const result = await signIn(email, password);
+    if (result.error) {
+      throw new Error(result.error.message || '로그인에 실패했습니다.');
     }
+    // 사용자 상태는 AuthContext의 onAuthStateChanged에서 자동으로 업데이트됨
   };
 
   const loginWithGoogle = async () => {
-    setIsLoading(true);
-    try {
-      // OAuth 상태 확인
-      const oauthStatus = checkOAuthStatus();
-      console.log('OAuth 상태:', oauthStatus);
-      
-      if (!oauthStatus.isConfigured) {
-        throw new Error('Google OAuth가 설정되지 않았습니다. 개발자에게 문의하세요.');
-      }
-      
-      // 현재 도메인 감지 - 일관된 리다이렉트 URL 사용
-      const currentOrigin = window.location.origin;
-      // OAuth 콜백을 위한 특별한 페이지 사용
-      const redirectUrl = `${currentOrigin}/auth/callback`;
-      
-      console.log('Google OAuth 시작:', {
-        origin: currentOrigin,
-        redirectUrl: redirectUrl,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Firebase Google OAuth
-      const { user, error } = await signInWithGoogle();
-
-      if (error) {
-        console.error('Google OAuth 오류:', error);
-        
-        // 구체적인 오류 메시지 제공
-        const errorMessage = getOAuthErrorMessage(error?.message || 'Google 로그인에 실패했습니다.');
-        throw new Error(errorMessage);
-      }
-      
-      console.log('Google OAuth 성공:', user);
-    } catch (error) {
-      console.error('Google login error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+    const result = await signInWithGoogle();
+    if (result.error) {
+      throw new Error(result.error.message || 'Google 로그인에 실패했습니다.');
     }
+    // 사용자 상태는 AuthContext의 onAuthStateChanged에서 자동으로 업데이트됨
   };
 
   const signup = async (email: string, password: string, name?: string) => {
-    setIsLoading(true);
     try {
       // First create user via our API
       await apiService.signup(email, password, name);
       
-      // Then sign them in with Firebase
-      const { user, error } = await signInWithEmail(email, password);
-
-      if (error) {
-        // 더 구체적인 에러 메시지 제공
-        let errorMessage = '로그인에 실패했습니다.';
-        
-        if (error?.code === 'auth/invalid-credential') {
-          errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-        }
-        
-        throw new Error(errorMessage);
+      // Then sign them in with AuthContext
+      const result = await signIn(email, password);
+      if (result.error) {
+        throw new Error(result.error.message || '회원가입 후 로그인에 실패했습니다.');
       }
+      // 사용자 상태는 AuthContext의 onAuthStateChanged에서 자동으로 업데이트됨
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -850,66 +721,13 @@ function AppProvider({ children }: { children: ReactNode }) {
         await trackUserBehavior(user.id, { action: 'logout' });
       }
       
-      // Firebase sign out
-      const { success, error } = await signOutUser();
-      if (!success || error) {
+      // AuthContext의 signOut 사용
+      const result = await signOut();
+      if (!result.success || result.error) {
         throw new Error('로그아웃에 실패했습니다. 다시 시도해주세요.');
       }
       
-      // 로컬 상태 초기화
-      setUser(null);
-      setSubscriptions([]);
-      setPreferences({
-        exchangeRate: 1300,
-        defaultCurrency: 'KRW',
-        notifications: {
-          paymentReminders: true,
-          priceChanges: true,
-          subscriptionExpiry: true,
-          email: true,
-          push: true,
-          sms: false,
-        },
-        theme: 'auto',
-        language: 'ko',
-        timezone: 'Asia/Seoul',
-        dateFormat: 'YYYY-MM-DD',
-        currencyFormat: 'KRW',
-      });
-      setNotifications([]);
-      setCategories([]);
-      setStats({
-        totalSubscriptions: 0,
-        activeSubscriptions: 0,
-        pausedSubscriptions: 0,
-        cancelledSubscriptions: 0,
-        totalMonthlyKrw: 0,
-        avgSubscriptionCost: 0,
-        upcomingPayments: 0,
-        todayCount: 0,
-        weekCount: 0,
-        categoryBreakdown: {},
-        paymentCycleBreakdown: {
-          monthly: { count: 0, totalAmount: 0 },
-          yearly: { count: 0, totalAmount: 0 },
-          onetime: { count: 0, totalAmount: 0 }
-        },
-        currencyBreakdown: {
-          KRW: { count: 0, totalAmount: 0 },
-          USD: { count: 0, totalAmount: 0 }
-        },
-        notificationStats: {
-          sevenDays: 0,
-          threeDays: 0,
-          sameDay: 0,
-          totalWithNotifications: 0
-        },
-        autoRenewalStats: {
-          enabled: 0,
-          disabled: 0,
-          percentage: 0
-        }
-      });
+      // 상태 초기화는 AuthContext의 onAuthStateChanged에서 자동으로 처리됨
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
@@ -1032,7 +850,7 @@ function AppProvider({ children }: { children: ReactNode }) {
     let prevMonthTotal = 0;
 
     subscriptions.forEach(sub => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       
       if (sub.status === 'active') {
         activeSubscriptions++;
@@ -1146,7 +964,7 @@ function AppProvider({ children }: { children: ReactNode }) {
 
     // 모든 구독을 다시 순회하여 상세 통계 계산
     subscriptions.forEach(sub => {
-      const amount = sub.currency === 'USD' ? sub.amount * preferences.exchangeRate : sub.amount;
+      const amount = sub.currency === 'USD' ? sub.amount * (preferences?.exchangeRate || 1) : sub.amount;
       const monthlyAmount = sub.paymentCycle === 'yearly' ? amount / 12 : amount;
 
       // 카테고리별 통계
@@ -1238,8 +1056,8 @@ function AppProvider({ children }: { children: ReactNode }) {
       preferences,
       notifications,
       categories,
-      isAuthenticated: !!user,
-      isLoading,
+      isAuthenticated: isAuthenticated && !!user,
+      isLoading: isLoading || authLoading,
       stats,
       login,
       loginWithGoogle,
@@ -1357,16 +1175,30 @@ function RedirectRoute() {
 }
 
 function App() {
+  // 알림 서비스를 전역 객체에 노출 (개발 및 테스트용)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // @ts-ignore
+      window.notificationService = notificationService;
+      // @ts-ignore  
+      window.notificationMonitor = notificationMonitor;
+      // @ts-ignore
+      window.useNotifications = useNotifications;
+      console.log('🔧 알림 서비스를 window 객체에 노출 완료');
+    }
+  }, []);
+
   return (
-    <AuthProvider>
-      <DataProvider>
-        <AppProvider>
-          <Suspense fallback={<LoadingSpinner />}>
-            <Router 
-              basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
-              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-            >
-          <div className="min-h-screen bg-background text-foreground dark">
+    <ErrorBoundary>
+      <AuthProvider>
+        <DataProvider>
+          <AppProvider>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Router 
+                basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
+                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+              >
+            <div className="min-h-screen bg-background text-foreground dark">
             {/* Moonwave Background */}
             <WaveBackground />
             
@@ -1410,13 +1242,17 @@ function App() {
             {/* Firebase Debugger - 개발 모드에서만 표시 */}
             {import.meta.env.VITE_DEV_MODE === 'true' && <FirebaseDebugger />}
             
+            {/* Auth Debugger - 개발 모드에서만 표시 */}
+            {import.meta.env.VITE_DEV_MODE === 'true' && <AuthDebugger />}
+            
             <Toaster />
           </div>
-            </Router>
-          </Suspense>
-        </AppProvider>
-      </DataProvider>
-    </AuthProvider>
+              </Router>
+            </Suspense>
+          </AppProvider>
+        </DataProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

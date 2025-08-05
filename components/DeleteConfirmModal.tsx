@@ -35,11 +35,12 @@ export function DeleteConfirmModal({ isOpen, onClose, onConfirm, serviceName }: 
             variant="ghost" 
             size="icon" 
             onClick={onClose} 
-            className="hover-button touch-target-sm focus-ring"
+            className="hover-button min-w-[44px] min-h-[44px] focus-ring"
             aria-label="모달 닫기"
             disabled={isDeleting}
+            title="모달 닫기"
           >
-            <X size={16} className="icon-enhanced" />
+            <X size={18} className="icon-enhanced" aria-hidden="true" />
           </Button>
         </DialogHeader>
         

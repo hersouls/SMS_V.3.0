@@ -2185,3 +2185,62 @@ svg {
   -webkit-backdrop-filter: none;
 }
 
+/* =====================================================
+  모바일 반응형 개선
+===================================================== */
+
+@media (max-width: 640px) {
+  /* 로그인 카드 모바일 너비 조정 */
+  .max-w-md {
+    max-width: 90% !important;
+    width: 90% !important;
+  }
+  
+  /* 모바일 패딩 조정 */
+  .p-8 {
+    padding: 1.5rem !important;
+  }
+  
+  .p-6 {
+    padding: 1.25rem !important;
+  }
+  
+  /* 모바일 입력 필드 크기 조정 */
+  input[type="email"],
+  input[type="password"],
+  input[type="text"],
+  textarea,
+  select {
+    min-height: 48px;
+    font-size: 16px; /* iOS 줌 방지 */
+  }
+  
+  /* 모바일 버튼 크기 조정 */
+  button {
+    min-height: 48px;
+    touch-action: manipulation; /* 더블탭 줌 방지 */
+  }
+}
+
+/* =====================================================
+  입력 필드 포커스 효과 개선
+===================================================== */
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.5) !important;
+  outline-offset: 0;
+  border-color: rgba(59, 130, 246, 0.8) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* =====================================================
+  다크 테마 배경색 일관성
+===================================================== */
+
+body {
+  background-color: #0a0a1a !important;
+  min-height: 100vh;
+}
+

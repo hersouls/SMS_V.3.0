@@ -215,7 +215,7 @@ export function SubscriptionCard() {
 
   const formatCurrency = (amount: number, currency: 'KRW' | 'USD') => {
     if (currency === 'USD') {
-      const krwAmount = amount * preferences.exchangeRate;
+      const krwAmount = amount * (preferences?.exchangeRate || 1);
       return `$${amount.toLocaleString()} (${krwAmount.toLocaleString('ko-KR')}원)`;
     } else {
       return `${amount.toLocaleString('ko-KR')}원`;
@@ -235,11 +235,11 @@ export function SubscriptionCard() {
   const getMonthlyAmount = () => {
     if (subscription.paymentCycle === 'yearly') {
       return subscription.currency === 'USD' 
-        ? (subscription.amount * preferences.exchangeRate) / 12
+        ? (subscription.amount * (preferences?.exchangeRate || 1)) / 12
         : subscription.amount / 12;
     }
     return subscription.currency === 'USD' 
-      ? subscription.amount * preferences.exchangeRate
+      ? subscription.amount * (preferences?.exchangeRate || 1)
       : subscription.amount;
   };
 
@@ -248,7 +248,7 @@ export function SubscriptionCard() {
       return getMonthlyAmount() * 12;
     }
     return subscription.currency === 'USD' 
-      ? subscription.amount * preferences.exchangeRate
+      ? subscription.amount * (preferences?.exchangeRate || 1)
       : subscription.amount;
   };
 

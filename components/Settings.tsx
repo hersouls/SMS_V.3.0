@@ -44,13 +44,33 @@ import { cn } from './ui/utils';
 
 export function Settings() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const { preferences, updatePreferences, subscriptions } = useData();
   const { handleError } = useErrorHandler();
   const { isLoading, withLoading } = useLoadingState();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // State management
-  const [localSettings, setLocalSettings] = useState(preferences);
+  // Default preferences structure
+  const defaultPreferences = {
+    exchangeRate: 1300,
+    defaultCurrency: 'KRW' as const,
+    notifications: {
+      paymentReminders: true,
+      priceChanges: true,
+      subscriptionExpiry: true,
+      email: true,
+      push: true,
+      sms: false
+    },
+    theme: 'dark' as const,
+    language: 'ko' as const,
+    timezone: 'Asia/Seoul',
+    dateFormat: 'YYYY-MM-DD',
+    currencyFormat: 'KRW'
+  };
+  
+  // State management - use preferences or default values
+  const [localSettings, setLocalSettings] = useState(preferences || defaultPreferences);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteCountdown, setDeleteCountdown] = useState(0);
@@ -59,7 +79,9 @@ export function Settings() {
 
   // Update local settings when global settings change
   useEffect(() => {
-    setLocalSettings(preferences);
+    if (preferences) {
+      setLocalSettings(preferences);
+    }
   }, [preferences]);
 
   // Delete confirmation countdown
@@ -83,12 +105,12 @@ export function Settings() {
     });
   };
 
-  const handleSettingsUpdate = async (newSettings: Partial<typeof preferences>) => {
+  const handleSettingsUpdate = async (newSettings: Partial<typeof defaultPreferences>) => {
     await withLoading('save', async () => {
       try {
         setSaveStatus('saving');
         await updatePreferences(newSettings);
-        setLocalSettings((prev: typeof preferences) => ({ ...prev, ...newSettings }));
+        setLocalSettings((prev) => ({ ...prev, ...newSettings }));
         setSaveStatus('saved');
         console.log('✅ 설정이 성공적으로 저장되었습니다.');
         setTimeout(() => setSaveStatus('idle'), 2000);
@@ -103,14 +125,14 @@ export function Settings() {
   // 더 정확한 설정 변경 감지 함수
   const hasSettingsChanged = () => {
     const hasChanged = (
-      localSettings.exchangeRate !== preferences.exchangeRate ||
-      JSON.stringify(localSettings.notifications) !== JSON.stringify(preferences.notifications)
+      localSettings.exchangeRate !== (preferences?.exchangeRate || defaultPreferences.exchangeRate) ||
+      JSON.stringify(localSettings.notifications) !== JSON.stringify(preferences?.notifications || defaultPreferences.notifications)
     );
     console.log('Settings changed:', hasChanged, {
       localExchangeRate: localSettings.exchangeRate,
-      globalExchangeRate: preferences.exchangeRate,
+      globalExchangeRate: preferences?.exchangeRate || defaultPreferences.exchangeRate,
       localNotifications: localSettings.notifications,
-      globalNotifications: preferences.notifications
+      globalNotifications: preferences?.notifications || defaultPreferences.notifications
     });
     return hasChanged;
   };
@@ -132,9 +154,9 @@ export function Settings() {
     handleSettingsUpdate({ exchangeRate: rate });
   };
 
-  const handleNotificationChange = (key: keyof typeof preferences.notifications, value: boolean) => {
+  const handleNotificationChange = (key: keyof typeof defaultPreferences.notifications, value: boolean) => {
     const updatedNotifications = { ...localSettings.notifications, [key]: value };
-    setLocalSettings((prev: typeof preferences) => ({ ...prev, notifications: updatedNotifications }));
+    setLocalSettings((prev) => ({ ...prev, notifications: updatedNotifications }));
     
     // 알림 설정 변경 시 즉시 저장
     handleSettingsUpdate({ notifications: updatedNotifications });
@@ -148,15 +170,34 @@ export function Settings() {
   };
 
   const handleLogout = async () => {
-    setIsLoading(true);
+    console.log('🔑 로그아웃 시작');
+    setIsLoggingOut(true);
+    
+    // 타임아웃 설정 (10초)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('로그아웃 타임아웃')), 10000);
+    });
+    
     try {
-      await logout();
-      navigate('/login');
+      console.log('🔑 signOut 함수 호출');
+      const result = await Promise.race([
+        signOut(),
+        timeoutPromise
+      ]);
+      console.log('🔑 signOut 결과:', result);
+      
+      if (result.success) {
+        console.log('✅ 로그아웃 성공, 로그인 페이지로 이동');
+        navigate('/login');
+      } else {
+        console.error('❌ 로그아웃 실패:', result.error);
+        setSaveStatus('error');
+        setIsLoggingOut(false);
+      }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ 로그아웃 중 예외 발생:', error);
       setSaveStatus('error');
-    } finally {
-      setIsLoading(false);
+      setIsLoggingOut(false);
     }
   };
 
@@ -166,9 +207,16 @@ export function Settings() {
       setDeleteCountdown(10);
     } else {
       // In a real app, this would call an API to delete the account
-      alert('계정 삭제 기능은 데모에서는 사용할 수 없습니다.');
+      // Use proper notification instead of alert
       setShowDeleteConfirm(false);
       setDeleteCountdown(0);
+      
+      // Show a proper notification/toast message
+      console.log('계정 삭제 기능은 데모에서는 사용할 수 없습니다.');
+      
+      // In production, you would:
+      // await deleteUserAccount();
+      // navigate('/login');
     }
   };
 
@@ -311,11 +359,11 @@ export function Settings() {
               <WaveButton 
                 variant="primary" 
                 onClick={() => {
-                  const changedSettings: Partial<typeof preferences> = {};
-                  if (localSettings.exchangeRate !== preferences.exchangeRate) {
+                  const changedSettings: Partial<typeof defaultPreferences> = {};
+                  if (localSettings.exchangeRate !== (preferences?.exchangeRate || defaultPreferences.exchangeRate)) {
                     changedSettings.exchangeRate = localSettings.exchangeRate;
                   }
-                  if (JSON.stringify(localSettings.notifications) !== JSON.stringify(preferences.notifications)) {
+                  if (JSON.stringify(localSettings.notifications) !== JSON.stringify(preferences?.notifications || defaultPreferences.notifications)) {
                     changedSettings.notifications = localSettings.notifications;
                   }
                   handleSettingsUpdate(changedSettings);
@@ -591,7 +639,7 @@ export function Settings() {
                         <WaveButton
                           variant="primary"
                           onClick={() => handleSettingsUpdate({ exchangeRate: localSettings.exchangeRate })}
-                          disabled={localSettings.exchangeRate === preferences.exchangeRate || localSettings.exchangeRate <= 0}
+                          disabled={localSettings.exchangeRate === (preferences?.exchangeRate || defaultPreferences.exchangeRate) || localSettings.exchangeRate <= 0}
                           className="px-token-lg hover:bg-white/30 active:scale-95 focus:ring-2 focus:ring-white/50 transition-all duration-200 touch-target"
                         >
                           <Save size={16} className="mr-token-xs text-white-force icon-enhanced" />
@@ -714,7 +762,7 @@ export function Settings() {
                     {/* Enhanced Notification Settings */}
                     {[
                       {
-                        key: 'paymentReminders' as keyof typeof preferences.notifications,
+                        key: 'paymentReminders' as keyof typeof defaultPreferences.notifications,
                         title: '결제 예정 알림',
                         description: '구독 결제일 전에 미리 알림을 받습니다',
                         icon: Calendar,
@@ -722,7 +770,7 @@ export function Settings() {
                         importance: 'high'
                       },
                       {
-                        key: 'priceChanges' as keyof typeof preferences.notifications,
+                        key: 'priceChanges' as keyof typeof defaultPreferences.notifications,
                         title: '가격 변동 알림',
                         description: '구독 서비스의 가격이 변경될 때 알림을 받습니다',
                         icon: TrendingUp,
@@ -730,7 +778,7 @@ export function Settings() {
                         importance: 'medium'
                       },
                       {
-                        key: 'subscriptionExpiry' as keyof typeof preferences.notifications,
+                        key: 'subscriptionExpiry' as keyof typeof defaultPreferences.notifications,
                         title: '구독 만료 알림',
                         description: '구독이 만료되기 전에 미리 알림을 받습니다',
                         icon: AlertTriangle,
@@ -762,14 +810,22 @@ export function Settings() {
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center space-x-token-sm mb-2">
-                                  <h3 className="text-white-force font-medium">{notification.title}</h3>
+                                  <h3 
+                                    id={`notification-label-${notification.key}`}
+                                    className="text-white-force font-medium"
+                                  >
+                                    {notification.title}
+                                  </h3>
                                   {notification.importance === 'high' && (
                                     <span className="px-2 py-0.5 bg-error-500/40 border-error-400/60 shadow-lg shadow-error-500/30 text-white-force rounded-full text-xs font-semibold border-2">
                                       중요
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-white-force/60 text-sm-ko mb-token-sm">
+                                <p 
+                                  id={`notification-desc-${notification.key}`}
+                                  className="text-white-force/60 text-sm-ko mb-token-sm"
+                                >
                                   {notification.description}
                                 </p>
                                 {isEnabled && (
@@ -784,16 +840,30 @@ export function Settings() {
                             <button
                               onClick={() => handleNotificationChange(notification.key, !isEnabled)}
                               className={cn(
-                                "relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background",
+                                "relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background min-w-[44px] min-h-[44px] p-2",
                                 isEnabled ? "bg-primary-500" : "bg-white/20"
                               )}
+                              role="switch"
+                              aria-checked={isEnabled}
+                              aria-labelledby={`notification-label-${notification.key}`}
+                              aria-describedby={`notification-desc-${notification.key}`}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleNotificationChange(notification.key, !isEnabled);
+                                }
+                              }}
                             >
                               <span
                                 className={cn(
                                   "inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-200 shadow-lg",
                                   isEnabled ? "translate-x-7" : "translate-x-1"
                                 )}
+                                aria-hidden="true"
                               />
+                              <span className="sr-only">
+                                {notification.label} {isEnabled ? '활성화됨' : '비활성화됨'}
+                              </span>
                             </button>
                           </div>
                         </div>
@@ -894,10 +964,10 @@ export function Settings() {
                           <WaveButton
                             variant="secondary"
                             onClick={handleLogout}
-                            disabled={isLoading}
+                            disabled={isLoggingOut}
                           >
                             <LogOut size={16} className="mr-token-xs text-white-force icon-enhanced" />
-                            {isLoading ? '로그아웃 중...' : '로그아웃'}
+                            {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
                           </WaveButton>
                         </div>
                       </div>
