@@ -7,6 +7,7 @@ import {
   signInWithMagicLink,
   confirmMagicLink,
   signInWithGoogle,
+  signInAnonymously,
   signOutUser
 } from '../utils/firebase/client';
 
@@ -19,6 +20,7 @@ interface AuthContextType {
   signInWithMagicLink: (email: string) => Promise<{ success: boolean; error: any }>;
   confirmMagicLink: (url: string) => Promise<{ user: User | null; error: any }>;
   signInWithGoogle: () => Promise<{ user: User | null; error: any }>;
+  signInAnonymously: () => Promise<{ user: User | null; error: any }>;
   signOut: () => Promise<{ success: boolean; error: any }>;
 }
 
@@ -64,6 +66,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return await signInWithGoogle();
   };
 
+  const handleSignInAnonymously = async () => {
+    console.log('🔑 익명 로그인 시도');
+    return await signInAnonymously();
+  };
+
   const handleSignOut = async () => {
     console.log('🔑 로그아웃 시도');
     return await signOutUser();
@@ -78,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithMagicLink: handleSignInWithMagicLink,
     confirmMagicLink: handleConfirmMagicLink,
     signInWithGoogle: handleSignInWithGoogle,
+    signInAnonymously: handleSignInAnonymously,
     signOut: handleSignOut
   };
 

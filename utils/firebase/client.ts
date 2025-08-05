@@ -7,6 +7,7 @@ import {
   sendSignInLinkToEmail,
   signInWithPopup,
   GoogleAuthProvider,
+  signInAnonymously,
   signOut,
   onAuthStateChanged,
   isSignInWithEmailLink
@@ -178,6 +179,17 @@ export const signInWithGoogle = async () => {
     return { user: result.user, error: null };
   } catch (error: any) {
     console.error('❌ Google 로그인 실패:', error);
+    return { user: null, error };
+  }
+};
+
+export const signInAnonymously = async () => {
+  try {
+    const result = await signInAnonymously(auth);
+    console.log('✅ 익명 로그인 성공:', result.user.uid);
+    return { user: result.user, error: null };
+  } catch (error: any) {
+    console.error('❌ 익명 로그인 실패:', error);
     return { user: null, error };
   }
 };

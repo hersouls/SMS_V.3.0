@@ -21,7 +21,8 @@ console.log('🔍 Firebase 환경 변수 확인:', {
   hasProjectId: !!firebaseConfig.projectId,
   hasStorageBucket: !!firebaseConfig.storageBucket,
   hasMessagingSenderId: !!firebaseConfig.messagingSenderId,
-  hasAppId: !!firebaseConfig.appId
+  hasAppId: !!firebaseConfig.appId,
+  isDevelopment: import.meta.env.DEV
 });
 
 // Firebase 앱 초기화
@@ -83,7 +84,7 @@ export const checkFirebaseConnection = async () => {
   try {
     if (!db) {
       console.log('ℹ️ Firebase가 설정되지 않았습니다.');
-      return false;
+      return { connected: false, error: 'Firebase not configured' };
     }
 
     console.log('🔍 Firebase 연결 확인 중...');

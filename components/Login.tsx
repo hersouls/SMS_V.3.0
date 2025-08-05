@@ -15,9 +15,10 @@ export function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAnonymousLoading, setIsAnonymousLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, signInAnonymously } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +57,24 @@ export function Login() {
     }
   };
 
+  const handleAnonymousLogin = async () => {
+    setError('');
+    setIsAnonymousLoading(true);
+
+    try {
+      const result = await signInAnonymously();
+      if (result.user) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error?.message || '익명 로그인에 실패했습니다.');
+      }
+    } catch (err: any) {
+      setError(err.message || '익명 로그인에 실패했습니다.');
+    } finally {
+      setIsAnonymousLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center p-4 relative" aria-label="로그인 페이지">
       <WaveBackground />
@@ -89,7 +108,7 @@ export function Login() {
             type="button"
             variant="secondary"
             size="lg"
-            className="w-full mb-6 hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base"
+            className="w-full mb-4 hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base"
             onClick={handleGoogleLogin}
             disabled={isGoogleLoading}
             ariaLabel="Google로 로그인"
@@ -116,6 +135,26 @@ export function Login() {
                 </svg>
               </div>
               <span>{isGoogleLoading ? 'Google 로그인 중...' : 'Google로 로그인'}</span>
+            </div>
+          </WaveButton>
+
+          {/* Anonymous Login Button */}
+          <WaveButton
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="w-full mb-6 hover:bg-white/20 active:scale-98 focus:ring-2 focus:ring-white/50 transition-base"
+            onClick={handleAnonymousLogin}
+            disabled={isAnonymousLoading}
+            ariaLabel="익명으로 로그인"
+          >
+            <div className="flex items-center justify-center space-x-3">
+              <div className="w-5 h-5 text-white-force">
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </div>
+              <span>{isAnonymousLoading ? '익명 로그인 중...' : '익명으로 로그인'}</span>
             </div>
           </WaveButton>
 
