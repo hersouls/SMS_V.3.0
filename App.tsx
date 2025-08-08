@@ -1093,9 +1093,23 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 }
 
 function AppProvider({ children }: { children: ReactNode }) {
+  // Normalize runtime basename for React Router (leading slash, no trailing slash except root)
+  const normalizeRouterBasename = (input?: string): string => {
+    const fallback = import.meta.env.BASE_URL || '/'
+    let base = (input && input.trim() !== '' ? input : fallback).trim()
+    if (!base.startsWith('/')) base = `/${base}`
+    // Remove trailing slash unless the path is just '/'
+    if (base.length > 1 && base.endsWith('/')) base = base.slice(0, -1)
+    // collapse duplicate slashes
+    base = base.replace(/\/+\/+/g, '/')
+    return base === '//' ? '/' : base
+  }
+
+  const basename = normalizeRouterBasename(import.meta.env.VITE_BASE_PATH)
+
   return (
     <Router 
-      basename={import.meta.env.DEV ? '/' : '/SMS_V.3.0/'}
+      basename={basename}
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <AppProviderContent>
