@@ -141,14 +141,10 @@
 
     <!-- Recover from stale chunk cache mismatches -->
     <script>
-      (function() {
-        const shouldHandle = (message) => /Loading chunk|ChunkLoadError|dynamically imported|ERR_ABORTED|import .* failed/i.test(message || '');
-        const mark = 'app-reloaded-on-chunk-error';
-        window.addEventListener('unhandledrejection', (event) => {
-          try {
-            const reason = event.reason || {};
-            const message = (reason && (reason.message || String(reason))) || '';
-            if (!shouldHandle(message)) return;
+            (function() {
+          const shouldHandle = (message) => /Loading chunk|ChunkLoadError|dynamically imported|ERR_ABORTED|import .* failed/i.test(message || '');
+          const mark = 'app-reloaded-on-chunk-error';
+          function triggerReload() {
             if (sessionStorage.getItem(mark) === '1') return;
             sessionStorage.setItem(mark, '1');
             if (window.caches && typeof caches.keys === 'function') {
@@ -158,15 +154,27 @@
             } else {
               location.reload();
             }
-          } catch (_) {
-            location.reload();
           }
-        });
-        window.addEventListener('load', () => {
-          // clear marker after a successful load so future errors can trigger a one-time reload again
-          sessionStorage.removeItem(mark);
-        });
-      })();
+          window.addEventListener('message', (event) => {
+            if (event && event.data && event.data.type === 'RELOAD_ON_CHUNK_ERROR') {
+              triggerReload();
+            }
+          });
+          window.addEventListener('unhandledrejection', (event) => {
+            try {
+              const reason = event.reason || {};
+              const message = (reason && (reason.message || String(reason))) || '';
+              if (!shouldHandle(message)) return;
+              triggerReload();
+            } catch (_) {
+              location.reload();
+            }
+          });
+          window.addEventListener('load', () => {
+            // clear marker after a successful load so future errors can trigger a one-time reload again
+            sessionStorage.removeItem(mark);
+          });
+        })();
     </script>
   </body>
 </html> 
