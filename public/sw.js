@@ -68,6 +68,45 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(handleStaticRequest(request));
 });
 
+// 네트워크 우선 + 캐시 회피 (JS/CSS 전용)
+async function networkFirstNoStore(request) {
+  try {
+    // 요청을 복제하여 캐시 우회 헤더 적용 및 cache-busting 쿼리 추가
+    const cacheBustingUrl = new URL(request.url);
+    cacheBustingUrl.searchParams.set('__sw', String(Date.now()));
+
+    const headers = new Headers(request.headers);
+    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    headers.set('Pragma', 'no-cache');
+    headers.set('Expires', '0');
+
+    const networkRequest = new Request(cacheBustingUrl.toString(), {
+      method: request.method,
+      headers,
+      mode: request.mode,
+      credentials: request.credentials,
+      redirect: request.redirect,
+      referrer: request.referrer,
+      referrerPolicy: request.referrerPolicy,
+      integrity: request.integrity,
+      // Service Worker 레벨에서 브라우저 캐시 우회
+      cache: 'reload'
+    });
+
+    const response = await fetch(networkRequest);
+    if (response && response.ok) {
+      // JS/CSS는 캐시에 저장하지 않고 그대로 반환 (항상 최신)
+      return response;
+    }
+    throw new Error('Network response not ok');
+  } catch (error) {
+    // 네트워크 실패 시, 기존 요청으로 캐시 확인 후 마지막 수단으로 네트워크 시도
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    return fetch(request).catch(() => new Response('Failed to load resource', { status: 502 }));
+  }
+}
+
 // API 요청 처리 - Network First with Offline Fallback
 async function handleApiRequest(request) {
   const cache = await caches.open(API_CACHE_NAME);
