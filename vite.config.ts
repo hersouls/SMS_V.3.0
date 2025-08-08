@@ -6,10 +6,24 @@ import path from 'path'
 export default defineConfig(({ command, mode }) => {
   const isDevelopment = mode === 'development'
   const isProduction = mode === 'production'
+
+  // Normalize base path for Vite (must have leading and trailing slash)
+  const normalizeViteBase = (input?: string): string => {
+    if (!input || input.trim() === '') return '/'
+    let base = input.trim()
+    if (!base.startsWith('/')) base = `/${base}`
+    if (!base.endsWith('/')) base = `${base}/`
+    // collapse duplicate slashes
+    base = base.replace(/\/+\/+/g, '/')
+    return base === '//' ? '/' : base
+  }
+
+  const envBase = process.env.VITE_BASE_PATH
+  const computedBase = normalizeViteBase(envBase)
   
   const config = {
     plugins: [react()],
-    base: '/',
+    base: computedBase,
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -119,6 +133,7 @@ export default defineConfig(({ command, mode }) => {
         VITE_FIREBASE_APP_ID: JSON.stringify(process.env.VITE_FIREBASE_APP_ID),
         VITE_GOOGLE_CLIENT_ID: JSON.stringify(process.env.VITE_GOOGLE_CLIENT_ID),
         VITE_GOOGLE_CLIENT_SECRET: JSON.stringify(process.env.VITE_GOOGLE_CLIENT_SECRET),
+        VITE_BASE_PATH: JSON.stringify(envBase ?? '/'),
       }
     },
     // 정적 파일 처리 개선
@@ -128,12 +143,6 @@ export default defineConfig(({ command, mode }) => {
     css: {
       devSourcemap: isDevelopment
     }
-  }
-
-  // Custom domain deployment (sub.moonwave.kr)
-  // GitHub Pages with custom domain doesn't need base path
-  if (command !== 'serve') {
-    config.base = '/'
   }
 
   return config
