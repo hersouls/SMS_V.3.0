@@ -23,25 +23,26 @@ export const getSubscriptionsForUser = async (userId: string, limitCount: number
     // 방법 1: 단순 where 쿼리 (인덱스 불필요)
     const simpleQuery = query(
       collection(db, 'subscriptions'),
-      where('userId', '==', userId),
-      firestoreLimit(limitCount)
+      where('userId', '==', userId)
     );
     
     const querySnapshot = await getDocs(simpleQuery);
-    const subscriptions = querySnapshot.docs.map(doc => ({
+    let subscriptions = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
     
-    // 클라이언트 사이드에서 정렬 (인덱스 오류 방지)
-    const sortedSubscriptions = subscriptions.sort((a, b) => {
-      const aTime = a.createdAt?.seconds || 0;
-      const bTime = b.createdAt?.seconds || 0;
-      return bTime - aTime; // 내림차순 정렬
-    });
+    // 클라이언트 사이드에서 정렬 및 제한 (인덱스 오류 방지)
+    subscriptions = subscriptions
+      .sort((a, b) => {
+        const aTime = a.createdAt?.seconds || a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.seconds || b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime; // 내림차순 정렬
+      })
+      .slice(0, limitCount);
     
-    console.log('✅ 구독 데이터 조회 성공:', sortedSubscriptions.length);
-    return { data: sortedSubscriptions, error: null };
+    console.log('✅ 구독 데이터 조회 성공:', subscriptions.length);
+    return { data: subscriptions, error: null };
     
   } catch (error: any) {
     console.error('❌ 구독 데이터 조회 실패:', error);
@@ -104,7 +105,7 @@ export const subscribeToUserSubscriptions = (
   try {
     console.log('🔔 실시간 구독 시작:', userId);
     
-    // 간단한 쿼리로 실시간 구독
+    // 간단한 쿼리로 실시간 구독 (서버 정렬/제한 제거)
     const simpleQuery = query(
       collection(db, 'subscriptions'),
       where('userId', '==', userId)

@@ -1093,29 +1093,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 }
 
 function AppProvider({ children }: { children: ReactNode }) {
-  // Normalize runtime basename for React Router (leading slash, no trailing slash except root)
-  const normalizeRouterBasename = (input?: string): string => {
-    const fallback = import.meta.env.BASE_URL || '/'
-    let base = (input && input.trim() !== '' ? input : fallback).trim()
-    if (!base.startsWith('/')) base = `/${base}`
-    // Remove trailing slash unless the path is just '/'
-    if (base.length > 1 && base.endsWith('/')) base = base.slice(0, -1)
-    // collapse duplicate slashes
-    base = base.replace(/\/+\/+/g, '/')
-    return base === '//' ? '/' : base
-  }
-
-  const basename = normalizeRouterBasename(import.meta.env.VITE_BASE_PATH)
-
   return (
-    <Router 
-      basename={basename}
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-    >
-      <AppProviderContent>
-        {children}
-      </AppProviderContent>
-    </Router>
+    <AppProviderContent>
+      {children}
+    </AppProviderContent>
   );
 }
 
@@ -1249,85 +1230,104 @@ function App() {
     }
   }, []);
 
+  // Normalize runtime basename for React Router (leading slash, no trailing slash except root)
+  const normalizeRouterBasename = (input?: string): string => {
+    const fallback = import.meta.env.BASE_URL || '/';
+    let base = (input && input.trim() !== '' ? input : fallback).trim();
+    if (!base.startsWith('/')) base = `/${base}`;
+    // Remove trailing slash unless the path is just '/'
+    if (base.length > 1 && base.endsWith('/')) base = base.slice(0, -1);
+    // collapse duplicate slashes
+    base = base.replace(/\/+\/+/g, '/');
+    return base === '//' ? '/' : base;
+  };
+
+  const basename = normalizeRouterBasename(import.meta.env.VITE_BASE_PATH);
+
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <DataProvider>
-          <AppProvider>
-            <Suspense fallback={<LoadingSpinner />}>
-              <div className="min-h-screen bg-background text-foreground dark">
-                {/* Moonwave Background */}
-                <WaveBackground />
-                
-                {/* Main content */}
-                <div className="relative z-10">
-                  <Routes>
-                    <Route path="/login" element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <Login />
-                      </Suspense>
-                    } />
-                    <Route path="/signup" element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <Signup />
-                      </Suspense>
-                    } />
-                    <Route path="/magic-login" element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <MagicLinkLogin />
-                      </Suspense>
-                    } />
-                    <Route path="/magic-signup" element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <MagicLinkSignup />
-                      </Suspense>
-                    } />
-                    <Route path="/auth/callback" element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <AuthCallback />
-                      </Suspense>
-                    } />
-                    <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
-                    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                    <Route path="/subscriptions" element={<ProtectedRoute><AllSubscriptions /></ProtectedRoute>} />
-                    <Route path="/subscriptions/:id" element={<ProtectedRoute><SubscriptionCard /></ProtectedRoute>} />
-                    <Route path="/subscriptions/new" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
-                    <Route path="/subscriptions/:id/edit" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
-                    <Route path="/calendar" element={<ProtectedRoute><PaymentCalendar /></ProtectedRoute>} />
-                    <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                    <Route path="/statistics" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
-                    <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                    <Route path="/about" element={<AboutUs />} />
-                    <Route path="/terms" element={<TermsOfService />} />
-                    <Route path="/firebase-debug" element={<FirebaseDebugger />} />
-                    <Route path="/music" element={<ProtectedRoute><MusicPlayer /></ProtectedRoute>} />
-                    
-                    {/* Handle preview_page.html and other unmatched routes */}
-                    <Route path="/preview_page.html" element={<RedirectRoute />} />
-                    <Route path="*" element={<RedirectRoute />} />
-                  </Routes>
+      <Router
+        basename={basename}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        <AuthProvider>
+          <DataProvider>
+            <AppProvider>
+              <Suspense fallback={<LoadingSpinner />}>
+                <div className="min-h-screen bg-background text-foreground dark">
+                  {/* Moonwave Background */}
+                  <WaveBackground />
+                  
+                  {/* Main content */}
+                  <div className="relative z-10">
+                    <Routes>
+                      <Route path="/login" element={
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <Login />
+                        </Suspense>
+                      } />
+                      <Route path="/signup" element={
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <Signup />
+                        </Suspense>
+                      } />
+                      <Route path="/magic-login" element={
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <MagicLinkLogin />
+                        </Suspense>
+                      } />
+                      <Route path="/magic-signup" element={
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <MagicLinkSignup />
+                        </Suspense>
+                      } />
+                      <Route path="/auth/callback" element={
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <AuthCallback />
+                        </Suspense>
+                      } />
+                      <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" /></ProtectedRoute>} />
+                      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                      <Route path="/subscriptions" element={<ProtectedRoute><AllSubscriptions /></ProtectedRoute>} />
+                      <Route path="/subscriptions/:id" element={<ProtectedRoute><SubscriptionCard /></ProtectedRoute>} />
+                      <Route path="/subscriptions/new" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
+                      <Route path="/subscriptions/:id/edit" element={<ProtectedRoute><AddEditSubscription /></ProtectedRoute>} />
+                      <Route path="/calendar" element={<ProtectedRoute><PaymentCalendar /></ProtectedRoute>} />
+                      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                      <Route path="/statistics" element={<ProtectedRoute><StatisticsDashboard /></ProtectedRoute>} />
+                      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                      <Route path="/about" element={<AboutUs />} />
+                      <Route path="/terms" element={<TermsOfService />} />
+                      <Route path="/firebase-debug" element={<FirebaseDebugger />} />
+                      <Route path="/music" element={<ProtectedRoute><MusicPlayer /></ProtectedRoute>} />
+                      
+                      {/* Handle preview_page.html and other unmatched routes */}
+                      <Route path="/preview_page.html" element={<RedirectRoute />} />
+                      <Route path="*" element={<RedirectRoute />} />
+                    </Routes>
+                  </div>
+                  
+                  {/* Music Player - Only show when authenticated */}
+                  <AuthenticatedMusicPlayer />
+                  
+                  {/* PWA Install Prompt */}
+                  <PWAInstallPrompt />
+                  
+                  {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
+                  
+                  {/* Firebase Debugger - 개발 모드에서만 표시 */}
+                  {import.meta.env.VITE_DEV_MODE === 'true' && <FirebaseDebugger />}
+                  
+                  {/* Auth Debugger - 개발 모드에서만 표시 */}
+                  {import.meta.env.VITE_DEV_MODE === 'true' && <AuthDebugger />}
+                  
+                  <Toaster />
                 </div>
-                
-                {/* Music Player - Only show when authenticated */}
-                <AuthenticatedMusicPlayer />
-                
-                {/* PWA Install Prompt */}
-                <PWAInstallPrompt />
-                
-                {import.meta.env.VITE_DEV_MODE === 'true' && <OAuthDebugger />}
-                
-                {/* Firebase Debugger - 개발 모드에서만 표시 */}
-                {import.meta.env.VITE_DEV_MODE === 'true' && <FirebaseDebugger />}
-                
-                {/* Auth Debugger - 개발 모드에서만 표시 */}
-                {import.meta.env.VITE_DEV_MODE === 'true' && <AuthDebugger />}
-                
-                <Toaster />
-              </div>
-            </Suspense>
-          </AppProvider>
-        </DataProvider>
-      </AuthProvider>
+              </Suspense>
+            </AppProvider>
+          </DataProvider>
+        </AuthProvider>
+      </Router>
     </ErrorBoundary>
   );
 }
