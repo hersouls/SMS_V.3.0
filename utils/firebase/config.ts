@@ -37,7 +37,21 @@ try {
 
   // Firebase 서비스 초기화
   auth = getAuth(firebaseApp);
-  db = getFirestore(firebaseApp);
+  // Firestore 초기화: 일부 네트워크/프록시 환경에서 실시간 채널(Streaming/XHR)이 끊기며 503이 발생하는 것을
+  // 완화하기 위해 long-polling 자동 감지 및 fetch stream 비활성화 설정을 사용합니다.
+  // initializeFirestore 사용이 불가능한 경우를 대비해 getFirestore로 폴백합니다.
+  try {
+    const { initializeFirestore, setLogLevel } = await import('firebase/firestore');
+    db = initializeFirestore(firebaseApp, {
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false
+    });
+    // 불필요한 콘솔 노이즈를 줄이기 위해 로그 레벨을 낮춥니다.
+    setLogLevel('error');
+  } catch (e) {
+    // initializeFirestore가 사용 불가한 경우 기본 초기화로 폴백
+    db = getFirestore(firebaseApp);
+  }
   storage = getStorage(firebaseApp);
 
   console.log('✅ Firebase 초기화 완료');
