@@ -1,7 +1,7 @@
 // Moonwave PWA Service Worker - Enhanced Offline Support
-const CACHE_NAME = 'moonwave-v1.1.0';
+const CACHE_NAME = 'moonwave-v1.2.0';
 const OFFLINE_URL = '/offline.html';
-const API_CACHE_NAME = 'moonwave-api-v1.1.0';
+const API_CACHE_NAME = 'moonwave-api-v1.2.0';
 
 // 캐시할 핵심 리소스들
 const CORE_CACHE_URLS = [
@@ -40,6 +40,14 @@ self.addEventListener('fetch', (event) => {
 
   // Chrome extension이나 다른 프로토콜 요청은 무시
   if (!request.url.startsWith('http')) {
+    return;
+  }
+
+  // Always use network-first for JS and CSS to avoid stale module graphs
+  const isScript = request.destination === 'script' || url.pathname.endsWith('.js');
+  const isStyle = request.destination === 'style' || url.pathname.endsWith('.css');
+  if (isScript || isStyle) {
+    event.respondWith(networkFirstNoStore(request));
     return;
   }
 
@@ -255,18 +263,20 @@ function createPlaceholderSVG() {
 
 // Activate event
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
+  event.waitUntil((async () => {
+    try {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME && name !== API_CACHE_NAME)
+          .map((name) => caches.delete(name))
       );
-    })
-  );
+      await self.clients.claim();
+      console.log('🧹 Old caches cleaned and clients claimed');
+    } catch (e) {
+      console.warn('Activate cleanup failed', e);
+    }
+  })());
 });
 
 // Push notification event
