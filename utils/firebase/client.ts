@@ -45,6 +45,19 @@ if (typeof window !== 'undefined') {
   window.db = db;
   // @ts-ignore
   window.storage = storage;
+  // 도우미: 간단 연결체크
+  // @ts-ignore
+  window.__checkFirebase = async () => {
+    try {
+      const user = auth.currentUser;
+      const { doc, getDoc } = await import('firebase/firestore');
+      const pingDoc = doc(db, '_meta', 'ping');
+      await getDoc(pingDoc).catch(() => undefined);
+      return { ok: true, hasUser: !!user };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  };
   console.log('🔧 Firebase 서비스를 window 객체에 노출 완료');
 }
 

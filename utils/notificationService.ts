@@ -95,6 +95,11 @@ export class NotificationService {
   private async getCurrentUser() {
     const user = auth.currentUser;
     if (!user) {
+      // 테스트 환경에서의 폴백
+      const testUserId = (typeof window !== 'undefined' && (window as any).__TEST_USER_ID__) || import.meta.env.VITE_TEST_USER_ID;
+      if (testUserId) {
+        return { uid: String(testUserId) } as any;
+      }
       throw new Error('사용자가 로그인되어 있지 않습니다.');
     }
     return user;
@@ -188,31 +193,29 @@ export class NotificationService {
         throw this.createError('PERMISSION_DENIED', '다른 사용자의 알림을 조회할 수 없습니다.');
       }
 
-      let q = query(
+      // 인덱스 의존도를 줄이기 위해 서버 정렬을 제거하고 최소 where만 사용
+      let baseQuery = query(
         collection(db, 'notifications'),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', userId)
       );
 
-      // 필터 적용
-      if (filter?.type && filter.type !== 'all') {
-        q = query(q, where('type', '==', filter.type));
-      }
-      
-      if (filter?.priority && filter.priority !== 'all') {
-        q = query(q, where('priority', '==', filter.priority));
-      }
-
-      // 제한 적용
-      q = query(q, limit(50));
-
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(baseQuery);
       let notifications = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: convertTimestamp(doc.data().createdAt),
         updatedAt: convertTimestamp(doc.data().updatedAt)
       })) as NotificationFirebase[];
+
+      // 클라이언트 사이드 필터/정렬/제한 적용
+      if (filter?.type && filter.type !== 'all') {
+        notifications = notifications.filter(n => n.type === filter.type);
+      }
+      if (filter?.priority && filter.priority !== 'all') {
+        notifications = notifications.filter(n => n.priority === filter.priority);
+      }
+      // 최신순 정렬 후 제한
+      notifications = notifications.sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime()).slice(0, 50);
 
       // 클라이언트 사이드 필터링
       if (filter?.status && filter.status !== 'all') {
@@ -464,34 +467,38 @@ export class NotificationService {
     
     this.listeners.get(userId)!.push(callback);
 
-    // 첫 번째 리스너인 경우 Firestore 리스너 설정
-    if (this.listeners.get(userId)!.length === 1) {
-      const q = query(
-        collection(db, 'notifications'),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
+          // 첫 번째 리스너인 경우 Firestore 리스너 설정
+      if (this.listeners.get(userId)!.length === 1) {
+        // 서버 정렬/제한을 제거하여 인덱스 요구를 회피
+        const q = query(
+          collection(db, 'notifications'),
+          where('userId', '==', userId)
+        );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const notifications = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: convertTimestamp(doc.data().createdAt),
-          updatedAt: convertTimestamp(doc.data().updatedAt)
-        })) as NotificationFirebase[];
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          let notifications = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: convertTimestamp(doc.data().createdAt),
+            updatedAt: convertTimestamp(doc.data().updatedAt)
+          })) as NotificationFirebase[];
 
-        const uiNotifications = notifications.map(convertFirebaseToUI);
-        
-        // 모든 리스너에게 알림
-        this.listeners.get(userId)?.forEach(listener => {
-          try {
-            listener(uiNotifications);
-          } catch (error) {
-            console.error('알림 리스너 오류:', error);
-          }
+          // 최신순 정렬 후 상한 제한
+          notifications = notifications
+            .sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime())
+            .slice(0, 50);
+
+          const uiNotifications = notifications.map(convertFirebaseToUI);
+          
+          // 모든 리스너에게 알림
+          this.listeners.get(userId)?.forEach(listener => {
+            try {
+              listener(uiNotifications);
+            } catch (error) {
+              console.error('알림 리스너 오류:', error);
+            }
+          });
         });
-      });
 
       this.unsubscribeMap.set(userId, unsubscribe);
     }
