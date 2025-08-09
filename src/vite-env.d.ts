@@ -12,7 +12,6 @@ interface ImportMetaEnv {
   
   // Google OAuth Configuration
   readonly VITE_GOOGLE_CLIENT_ID: string
-  readonly VITE_GOOGLE_CLIENT_SECRET: string
   
   // Application Configuration
   readonly VITE_APP_URL: string

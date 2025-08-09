@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '../utils/supabase/client';
+// Supabase 클라이언트는 현재 번들에 포함되지 않음. 스텁 처리합니다.
+const supabase = { auth: { getSession: async () => ({ data: { session: null }, error: null }) }, from: () => ({ select: () => ({ data: [], error: { message: 'disabled' } }), eq: () => ({ data: [], error: { message: 'disabled' } }) }) } as any;
 
 export const QuickDataTest = () => {
   const [result, setResult] = useState<string>('');

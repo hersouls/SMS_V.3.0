@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, User, Database, CheckCircle, XCircle, AlertTriangle, RotateCw, Play, FileText } from 'lucide-react';
-import { supabase } from '../utils/supabase/client';
-import { 
-  checkAuthenticationStatus, 
-  testDataAccessAfterLogin, 
-  testRLSPolicyComparison, 
-  logSessionDetails 
-} from '../utils/auth-test';
+// Supabase 및 auth-test 모듈 비활성화됨. 디버그 동작을 스텁 처리합니다.
+const supabase = { auth: { refreshSession: async () => ({ data: { session: null }, error: null }) } } as any;
+const checkAuthenticationStatus = async () => ({ isAuthenticated: false, sessionData: null });
+const testDataAccessAfterLogin = async () => ({ results: [] });
+const testRLSPolicyComparison = async () => ({ results: [] });
+const logSessionDetails = async () => {};
 
 interface SessionInfo {
   isAuthenticated: boolean;

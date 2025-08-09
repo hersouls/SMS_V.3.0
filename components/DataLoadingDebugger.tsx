@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { supabase, checkSupabaseConnection, checkAuthStatus } from '../utils/supabase/client';
 import { apiService } from '../utils/api';
 import { useApp } from '../App';
+
+// Supabase 클라이언트는 현재 번들에 포함되지 않음. 해당 디버그 테스트는 비활성화.
+const checkAuthStatus = async () => ({ isAuthenticated: false, user: null, error: null, accessToken: null });
 
 export const DataLoadingDebugger = () => {
   const [debugInfo, setDebugInfo] = useState<any>({});
@@ -45,45 +47,9 @@ export const DataLoadingDebugger = () => {
         hasAccessToken: !!authStatus.accessToken
       };
 
-      // 4. Test Supabase connection
-      try {
-        const isConnected = await checkSupabaseConnection();
-        results.supabaseConnection = {
-          success: isConnected,
-          error: null
-        };
-      } catch (error: any) {
-        results.supabaseConnection = {
-          success: false,
-          error: error.message
-        };
-        results.errors.push(`Supabase 연결 실패: ${error.message}`);
-      }
-
-      // 5. Test direct Supabase query
-      try {
-        const { data: directData, error: directError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .limit(5);
-        
-        results.directSupabaseQuery = {
-          success: !directError,
-          error: directError?.message,
-          dataCount: directData?.length || 0,
-          firstItem: directData?.[0] ? {
-            id: directData[0].id,
-            service_name: directData[0].service_name,
-            user_id: directData[0].user_id
-          } : null
-        };
-      } catch (error: any) {
-        results.directSupabaseQuery = {
-          success: false,
-          error: error.message
-        };
-        results.errors.push(`Direct Supabase query failed: ${error.message}`);
-      }
+      // 4-5. Supabase 관련 테스트는 비활성화됨
+      results.supabaseConnection = { success: false, error: 'disabled' };
+      results.directSupabaseQuery = { success: false, error: 'disabled' };
 
       // 6. Test API service query
       try {
