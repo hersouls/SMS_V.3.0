@@ -1,7 +1,7 @@
 // Moonwave PWA Service Worker - Enhanced Offline Support
-const CACHE_NAME = 'moonwave-v1.2.0';
+const CACHE_NAME = 'moonwave-v1.3.0';
 const OFFLINE_URL = '/offline.html';
-const API_CACHE_NAME = 'moonwave-api-v1.2.0';
+const API_CACHE_NAME = 'moonwave-api-v1.3.0';
 
 // 캐시할 핵심 리소스들
 const CORE_CACHE_URLS = [
@@ -232,6 +232,32 @@ async function handleStaticRequest(request) {
   }
   
   return new Response('리소스를 로드할 수 없습니다.', { status: 404 });
+}
+
+// JS/CSS 자원은 항상 최신 네트워크 응답을 사용하고, 실패 시 클라이언트에 새로고침 신호 전송
+async function networkFirstNoStore(request) {
+  try {
+    const networkResponse = await fetch(new Request(request, { cache: 'no-store' }));
+    if (networkResponse && networkResponse.ok) {
+      return networkResponse;
+    }
+    throw new Error(`Bad response: ${networkResponse ? networkResponse.status : 'no response'}`);
+  } catch (e) {
+    // 청크 로드 실패 시, 모든 캐시를 정리하고 클라이언트에 새로고침 요청 전송
+    try {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((k) => caches.delete(k)));
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clients.forEach((client) => client.postMessage({ type: 'RELOAD_ON_CHUNK_ERROR' }));
+    } catch (_) {
+      // ignore
+    }
+    // 마지막 수단: 캐시된 응답 시도
+    const cache = await caches.open(CACHE_NAME);
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+    return new Response('Network unavailable for script/style', { status: 503 });
+  }
 }
 
 // 오프라인 HTML 생성
