@@ -132,7 +132,7 @@ export default defineConfig(({ command, mode }) => {
         VITE_FIREBASE_MESSAGING_SENDER_ID: JSON.stringify(process.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
         VITE_FIREBASE_APP_ID: JSON.stringify(process.env.VITE_FIREBASE_APP_ID),
         VITE_GOOGLE_CLIENT_ID: JSON.stringify(process.env.VITE_GOOGLE_CLIENT_ID),
-        VITE_GOOGLE_CLIENT_SECRET: JSON.stringify(process.env.VITE_GOOGLE_CLIENT_SECRET),
+        // Removed VITE_GOOGLE_CLIENT_SECRET to avoid exposing secrets client-side
         VITE_BASE_PATH: JSON.stringify(envBase ?? '/'),
       }
     },

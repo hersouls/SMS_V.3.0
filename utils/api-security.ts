@@ -1,7 +1,8 @@
 // API 보안 강화 모듈
 // SMS V.3.0 통합 테스트 보안 검토 결과 기반
 
-import { supabase } from './supabase/client';
+// Supabase 클라이언트는 현재 번들에 포함되지 않음. 필요한 곳에서 스텁 사용.
+const supabase: any = { auth: { getSession: async () => ({ data: { session: null }, error: null }), refreshSession: async () => ({ data: { session: null }, error: { message: 'disabled' } }), signOut: async () => {} } };
 
 // JWT 토큰 검증 및 관리
 export class TokenManager {
